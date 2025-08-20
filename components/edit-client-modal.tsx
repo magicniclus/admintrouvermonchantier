@@ -253,6 +253,25 @@ export function EditClientModal({ client, isOpen, onClose, onClientUpdated }: Ed
                   <h3 className="font-semibold">Présence digitale</h3>
                 </div>
                 <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="siteInternetClient">Site internet du client</Label>
+                    <Input
+                      id="siteInternetClient"
+                      type="url"
+                      placeholder="https://..."
+                      value={formData.SiteInternetClient || formData.siteInternetClient || ""}
+                      onChange={(e) => handleInputChange("SiteInternetClient", e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="baliseGoogleAds">Balise Google Ads</Label>
+                    <Input
+                      id="baliseGoogleAds"
+                      placeholder="Numéro de la balise Google Ads"
+                      value={formData.BaliseGoogleAds || formData.baliseGoogleAds || ""}
+                      onChange={(e) => handleInputChange("BaliseGoogleAds", e.target.value)}
+                    />
+                  </div>
                   <div className="flex items-center space-x-2">
                     <Checkbox
                       id="siteWebExistant"
