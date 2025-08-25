@@ -31,6 +31,7 @@ import {
   Image as ImageIcon,
   Download,
   Archive,
+  CreditCard,
 } from "lucide-react"
 import { doc, updateDoc, getDoc, Timestamp } from "firebase/firestore"
 import { db } from "@/lib/firebase"
@@ -95,6 +96,9 @@ export function EditClientModal({ client, isOpen, onClose, onClientUpdated }: Ed
   const [showOnboardingData, setShowOnboardingData] = useState(false)
   const [onboardingData, setOnboardingData] = useState<OnboardingData | null>(null)
   const [loadingOnboarding, setLoadingOnboarding] = useState(false)
+  const [showPaymentModal, setShowPaymentModal] = useState(false)
+  const [selectedOffer, setSelectedOffer] = useState<'90j-offert' | 'classique' | null>(null)
+  const [sendingPaymentLink, setSendingPaymentLink] = useState(false)
 
   useEffect(() => {
     if (client) {
@@ -193,19 +197,56 @@ export function EditClientModal({ client, isOpen, onClose, onClientUpdated }: Ed
     }
   }
 
+  const handleSendPaymentLink = async () => {
+    if (!selectedOffer || !formData) return
+
+    try {
+      setSendingPaymentLink(true)
+      
+      const response = await fetch('/api/send-payment-link', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: formData.Email || formData.email,
+          firstName: formData.Prenom || formData.prenom,
+          lastName: formData.Nom || formData.nom,
+          offerType: selectedOffer,
+          clientId: formData.id
+        })
+      })
+
+      if (response.ok) {
+        alert('Email de lien de paiement envoyé avec succès !')
+        setShowPaymentModal(false)
+        setSelectedOffer(null)
+      } else {
+        const error = await response.json()
+        alert('Erreur lors de l\'envoi: ' + error.error)
+      }
+    } catch (error) {
+      console.error('Erreur:', error)
+      alert('Erreur lors de l\'envoi de l\'email')
+    } finally {
+      setSendingPaymentLink(false)
+    }
+  }
+
   if (!formData) return null
 
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <Dialog open={isOpen} onOpenChange={onClose}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <User className="w-5 h-5" />
-                Modifier le client
-              </DialogTitle>
-            </DialogHeader>
+    <>
+      <AnimatePresence>
+        {isOpen && (
+          <Dialog open={isOpen} onOpenChange={onClose}>
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <User className="w-5 h-5" />
+                  Modifier le client
+                </DialogTitle>
+              </DialogHeader>
 
             <div className="space-y-6">
               {/* Informations personnelles */}
@@ -463,6 +504,29 @@ export function EditClientModal({ client, isOpen, onClose, onClientUpdated }: Ed
                   </div>
                 </div>
               )}
+
+              <Separator />
+
+              {/* Lien de paiement */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <CreditCard className="w-4 h-4" />
+                  <h3 className="font-semibold">Lien de paiement</h3>
+                </div>
+                <div className="space-y-3">
+                  <div className="text-sm text-gray-600">
+                    Envoyez un lien de paiement sécurisé au client pour finaliser son abonnement :
+                  </div>
+                  <Button
+                    onClick={() => setShowPaymentModal(true)}
+                    className="w-full"
+                    variant="default"
+                  >
+                    <CreditCard className="w-4 h-4 mr-2" />
+                    Envoyer lien de paiement
+                  </Button>
+                </div>
+              </div>
 
               <Separator />
 
@@ -864,10 +928,107 @@ export function EditClientModal({ client, isOpen, onClose, onClientUpdated }: Ed
                   </>
                 )}
               </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
-    </AnimatePresence>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
+      </AnimatePresence>
+
+      {/* Modal de sélection d'offre de paiement */}
+      <AnimatePresence>
+        {showPaymentModal && (
+          <Dialog open={showPaymentModal} onOpenChange={setShowPaymentModal}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <CreditCard className="w-5 h-5" />
+                  Envoyer lien de paiement
+                </DialogTitle>
+              </DialogHeader>
+
+              <div className="space-y-6">
+                <div className="text-sm text-gray-600">
+                  Choisissez l'offre à envoyer à <strong>{formData?.Prenom || formData?.prenom} {formData?.Nom || formData?.nom}</strong> :
+                </div>
+
+                <div className="space-y-3">
+                  <div 
+                    className={`border rounded-lg p-4 cursor-pointer transition-all ${
+                      selectedOffer === '90j-offert' 
+                        ? 'border-blue-500 bg-blue-50' 
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                    onClick={() => setSelectedOffer('90j-offert')}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`w-4 h-4 rounded-full border-2 ${
+                        selectedOffer === '90j-offert' 
+                          ? 'border-blue-500 bg-blue-500' 
+                          : 'border-gray-300'
+                      }`}>
+                        {selectedOffer === '90j-offert' && (
+                          <div className="w-full h-full rounded-full bg-white scale-50"></div>
+                        )}
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-gray-900">🎉 Offre Spéciale - 90 jours offerts</h4>
+                        <p className="text-sm text-gray-600">Profitez de 3 mois gratuits pour découvrir tous nos services</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div 
+                    className={`border rounded-lg p-4 cursor-pointer transition-all ${
+                      selectedOffer === 'classique' 
+                        ? 'border-blue-500 bg-blue-50' 
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                    onClick={() => setSelectedOffer('classique')}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`w-4 h-4 rounded-full border-2 ${
+                        selectedOffer === 'classique' 
+                          ? 'border-blue-500 bg-blue-500' 
+                          : 'border-gray-300'
+                      }`}>
+                        {selectedOffer === 'classique' && (
+                          <div className="w-full h-full rounded-full bg-white scale-50"></div>
+                        )}
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-gray-900">🚀 Abonnement Standard</h4>
+                        <p className="text-sm text-gray-600">Accédez immédiatement à tous nos outils professionnels</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-4">
+                  <Button variant="outline" onClick={() => setShowPaymentModal(false)}>
+                    Annuler
+                  </Button>
+                  <Button 
+                    onClick={handleSendPaymentLink} 
+                    disabled={!selectedOffer || sendingPaymentLink}
+                  >
+                    {sendingPaymentLink ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        Envoi en cours...
+                      </>
+                    ) : (
+                      <>
+                        <Mail className="w-4 h-4 mr-2" />
+                        Envoyer l'email
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
+      </AnimatePresence>
+    </>
   )
 }

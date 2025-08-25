@@ -27,8 +27,7 @@ import {
 } from "lucide-react"
 import { doc, setDoc } from "firebase/firestore"
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage"
-import { createUserWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth"
-import { db, storage, auth } from "@/lib/firebase"
+import { db, storage } from "@/lib/firebase"
 import Image from "next/image"
 
 interface OnboardingData {
@@ -76,8 +75,6 @@ export default function OnboardingPage() {
   const clientId = searchParams.get('clientId')
   const [currentStep, setCurrentStep] = useState(1)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [accountCreated, setAccountCreated] = useState(false)
-  const [passwordResetSent, setPasswordResetSent] = useState(false)
   const [formData, setFormData] = useState<OnboardingData>({
     prenom: "",
     nom: "",
@@ -148,15 +145,6 @@ export default function OnboardingPage() {
     return await Promise.all(uploadPromises)
   }
 
-  // Fonction pour générer un mot de passe aléatoire
-  const generateRandomPassword = () => {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*'
-    let password = ''
-    for (let i = 0; i < 12; i++) {
-      password += chars.charAt(Math.floor(Math.random() * chars.length))
-    }
-    return password
-  }
 
   const handleSubmit = async () => {
     if (!clientId) {
@@ -166,74 +154,30 @@ export default function OnboardingPage() {
 
     try {
       setIsSubmitting(true)
-      const logs: string[] = []
       
-      const addLog = (message: string) => {
-        const timestamp = new Date().toLocaleString('fr-FR')
-        const logEntry = `[${timestamp}] ${message}`
-        console.log(logEntry)
-        logs.push(logEntry)
-      }
-      
-      addLog("Début de la soumission pour client: " + clientId)
-      
-      // 1. Créer le compte Firebase Auth avec un mot de passe aléatoire
-      addLog("Création du compte Firebase Auth...")
-      const randomPassword = generateRandomPassword()
-      let userCredential
-      
+      // 1. Envoyer l'email de bienvenue avec SendGrid
       try {
-        userCredential = await createUserWithEmailAndPassword(auth, formData.email, randomPassword)
-        addLog("Compte Firebase Auth créé: " + userCredential.user.uid)
-        setAccountCreated(true)
-        
-        // 2. Envoyer l'email de bienvenue avec SendGrid
-        addLog("=== DÉBUT ENVOI EMAIL ===")
-        addLog("Email destinataire: " + formData.email)
-        addLog("Prénom: " + formData.prenom)
-        addLog("Nom: " + formData.nom)
-        
-        try {
-          const emailResponse = await fetch('/api/send-welcome-email', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              email: formData.email,
-              firstName: formData.prenom,
-              lastName: formData.nom,
-              clientId: clientId
-            })
-          });
+        const emailResponse = await fetch('/api/send-welcome-email', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email: formData.email,
+            firstName: formData.prenom,
+            lastName: formData.nom,
+            clientId: clientId
+          })
+        });
 
-          addLog("Status de la réponse: " + emailResponse.status)
-          const responseData = await emailResponse.json()
-          addLog("Réponse de l'API: " + JSON.stringify(responseData))
-
-          if (emailResponse.ok) {
-            addLog("✅ Email de bienvenue envoyé avec succès")
-            setPasswordResetSent(true)
-          } else {
-            addLog("❌ Erreur lors de l'envoi de l'email: " + JSON.stringify(responseData))
-          }
-        } catch (emailError) {
-          addLog("❌ Erreur réseau lors de l'envoi de l'email: " + emailError)
+        if (!emailResponse.ok) {
+          console.error("Erreur lors de l'envoi de l'email:", emailResponse.status)
         }
-        
-        addLog("=== FIN ENVOI EMAIL ===")
-      } catch (authError: any) {
-        addLog("Erreur lors de la création du compte (non bloquant): " + authError.message)
-        // Si le compte existe déjà, on continue quand même
-        if (authError.code !== 'auth/email-already-in-use') {
-          throw authError
-        }
+      } catch (emailError) {
+        console.error("Erreur réseau lors de l'envoi de l'email:", emailError)
       }
       
-      // 3. Sauvegarder les données textuelles
-      addLog("Sauvegarde des données textuelles...")
-      
-      // Mettre à jour le document client principal avec les nouvelles données
+      // 2. Sauvegarder les données textuelles
       const clientUpdateData = {
         prenom: formData.prenom,
         nom: formData.nom,
@@ -265,12 +209,11 @@ export default function OnboardingPage() {
         typeAbonnement: "29€/mois",
         typeSite: "99€",
         dateCreationAbonnement: new Date(),
-        firebaseAuthUid: userCredential?.user?.uid || null
+        firebaseAuthUid: null // Pas de compte Firebase créé
       }
 
       await setDoc(doc(db, "clients", clientId), clientUpdateData, { merge: true })
-      addLog("Document client principal mis à jour")
-
+      
       // Sauvegarder dans la collection onboarding (sans images pour l'instant)
       const onboardingDataWithoutImages = {
         ...formData,
@@ -282,42 +225,25 @@ export default function OnboardingPage() {
       const { chantiersImages: _, employesImages: __, logoImage: ___, ...dataToSave } = onboardingDataWithoutImages
 
       await setDoc(doc(db, "clients", clientId, "onboarding", "data"), dataToSave)
-      addLog("Données onboarding sauvegardées dans le sous-dossier du client")
-
+      
       // Essayer d'uploader les images (optionnel - ne bloque pas si ça échoue)
       let chantiersImageUrls: string[] = []
       let employesImageUrls: string[] = []
       let logoImageUrl: string = ""
 
-      addLog("Tentative d'upload des images...")
-
       try {
         if (formData.chantiersImages.length > 0) {
-          addLog("Upload des images de chantiers...")
           chantiersImageUrls = await uploadImages(formData.chantiersImages, "chantiers")
-          addLog("Images chantiers uploadées: " + chantiersImageUrls.length + " images")
         }
 
         if (formData.employesImages.length > 0) {
-          addLog("Upload des images d'employés...")
-          try {
-            employesImageUrls = await uploadImages(formData.employesImages, "employes")
-            addLog("Images employés uploadées: " + employesImageUrls.length + " images")
-          } catch (employeError) {
-            addLog("Erreur upload images employés: " + employeError)
-          }
+          employesImageUrls = await uploadImages(formData.employesImages, "employes")
         }
 
         if (formData.logoImage) {
-          addLog("Upload du logo...")
-          try {
-            const logoRef = ref(storage, `clients/${clientId}/logo/${Date.now()}_${formData.logoImage.name}`)
-            await uploadBytes(logoRef, formData.logoImage)
-            logoImageUrl = await getDownloadURL(logoRef)
-            addLog("Logo uploadé avec succès")
-          } catch (logoError) {
-            addLog("Erreur upload logo: " + logoError)
-          }
+          const logoRef = ref(storage, `clients/${clientId}/logo/${Date.now()}_${formData.logoImage.name}`)
+          await uploadBytes(logoRef, formData.logoImage)
+          logoImageUrl = await getDownloadURL(logoRef)
         }
 
         // Mettre à jour avec les URLs des images si l'upload a réussi
@@ -333,18 +259,11 @@ export default function OnboardingPage() {
             employesImages: employesImageUrls,
             logoImage: logoImageUrl
           }, { merge: true })
-          
-          addLog("URLs des images sauvegardées")
         }
       } catch (imageError) {
-        addLog("Erreur lors de l'upload des images (non bloquant): " + imageError)
+        console.error("Erreur lors de l'upload des images (non bloquant):", imageError)
       }
 
-      addLog("✅ Onboarding terminé avec succès")
-      
-      // Sauvegarder les logs dans le localStorage
-      localStorage.setItem('onboardingLogs', JSON.stringify(logs))
-      
       // Redirection vers la page de remerciement
       window.location.href = `/merci?firstName=${encodeURIComponent(formData.prenom)}&email=${encodeURIComponent(formData.email)}`
       
@@ -943,37 +862,18 @@ export default function OnboardingPage() {
               <p className="text-gray-600">Vérifiez vos informations avant de continuer</p>
             </div>
 
-            {/* Notifications de création de compte */}
-            {(accountCreated || passwordResetSent) && (
-              <div className="space-y-4 mb-6">
-                {accountCreated && (
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                    <div className="flex items-center">
-                      <CheckCircle className="w-5 h-5 text-green-600 mr-3" />
-                      <div>
-                        <h3 className="font-semibold text-green-800">Compte créé avec succès !</h3>
-                        <p className="text-sm text-green-700">
-                          Votre compte utilisateur a été automatiquement créé avec l'email : <strong>{formData.email}</strong>
-                        </p>
-                      </div>
-                    </div>
+            {/* Notification simple */}
+            {isSubmitting && (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+                <div className="flex items-center">
+                  <CheckCircle className="w-5 h-5 text-green-600 mr-3" />
+                  <div>
+                    <h3 className="font-semibold text-green-800">Données sauvegardées !</h3>
+                    <p className="text-sm text-green-700">
+                      Vos informations ont été enregistrées et un email de bienvenue a été envoyé.
+                    </p>
                   </div>
-                )}
-                
-                {passwordResetSent && (
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <div className="flex items-center">
-                      <CheckCircle className="w-5 h-5 text-blue-600 mr-3" />
-                      <div>
-                        <h3 className="font-semibold text-blue-800">Email de configuration envoyé !</h3>
-                        <p className="text-sm text-blue-700">
-                          Un email vous a été envoyé à <strong>{formData.email}</strong> pour définir votre mot de passe.
-                          Vérifiez votre boîte de réception (et vos spams).
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
+                </div>
               </div>
             )}
 

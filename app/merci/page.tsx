@@ -1,24 +1,14 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { motion } from "framer-motion"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { CheckCircle, Mail, Clock, User } from "lucide-react"
+import { CheckCircle, Mail, Clock } from "lucide-react"
 
 export default function MerciPage() {
-  const [logs, setLogs] = useState<string[]>([])
   const searchParams = useSearchParams()
   const firstName = searchParams.get('firstName') || 'Client'
   const email = searchParams.get('email') || ''
-
-  useEffect(() => {
-    // Récupérer les logs depuis le localStorage
-    const savedLogs = localStorage.getItem('onboardingLogs')
-    if (savedLogs) {
-      setLogs(JSON.parse(savedLogs))
-    }
-  }, [])
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 dark:from-gray-900 dark:to-gray-800 p-6">
@@ -77,24 +67,6 @@ export default function MerciPage() {
           </CardContent>
         </Card>
 
-        {/* Logs de traitement */}
-        {logs.length > 0 && (
-          <Card className="shadow-xl border-0 bg-white/80 backdrop-blur-sm dark:bg-gray-900/80">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <User className="w-5 h-5" />
-                Détails du traitement
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 max-h-96 overflow-y-auto">
-                <pre className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
-                  {logs.join('\n')}
-                </pre>
-              </div>
-            </CardContent>
-          </Card>
-        )}
       </motion.div>
     </div>
   )
