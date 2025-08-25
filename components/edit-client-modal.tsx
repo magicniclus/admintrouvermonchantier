@@ -25,8 +25,14 @@ import {
   Calendar,
   Link,
   Copy,
+  FileText,
+  ChevronDown,
+  ChevronUp,
+  Image as ImageIcon,
+  Download,
+  Archive,
 } from "lucide-react"
-import { doc, updateDoc, Timestamp } from "firebase/firestore"
+import { doc, updateDoc, getDoc, Timestamp } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 
 interface Client {
@@ -39,7 +45,39 @@ interface Client {
   ville?: string
   StatutClient?: string
   DateConversionClient?: Timestamp
+  onboardingCompleted?: boolean
   [key: string]: any
+}
+
+interface OnboardingData {
+  prenom: string
+  nom: string
+  email: string
+  telephone: string
+  nomEntreprise: string
+  raisonSociale: string
+  adresseEntreprise: string
+  codePostal: string
+  ville: string
+  anneeCreation: string
+  nombreCollaborateurs: string
+  prestation: string
+  rayonIntervention: string
+  certification: string
+  garanties: string
+  partenaire: string
+  descriptionEntreprise: string
+  histoireCreateur: string
+  prestationsDetaillees: string
+  formations: string
+  siteWebExistant: boolean
+  siteWebURL: string
+  commentaire: string
+  chantiersImages?: string[]
+  employesImages?: string[]
+  logoImage?: string
+  dateCompletion?: Timestamp
+  status?: string
 }
 
 interface EditClientModalProps {
@@ -54,6 +92,9 @@ export function EditClientModal({ client, isOpen, onClose, onClientUpdated }: Ed
   const [isUpdating, setIsUpdating] = useState(false)
   const [onboardingLink, setOnboardingLink] = useState("")
   const [linkCopied, setLinkCopied] = useState(false)
+  const [showOnboardingData, setShowOnboardingData] = useState(false)
+  const [onboardingData, setOnboardingData] = useState<OnboardingData | null>(null)
+  const [loadingOnboarding, setLoadingOnboarding] = useState(false)
 
   useEffect(() => {
     if (client) {
@@ -76,6 +117,60 @@ export function EditClientModal({ client, isOpen, onClose, onClientUpdated }: Ed
 
   const openOnboardingLink = () => {
     window.open(onboardingLink, '_blank')
+  }
+
+  const fetchOnboardingData = async () => {
+    if (!client.id || loadingOnboarding) return
+    
+    try {
+      setLoadingOnboarding(true)
+      const onboardingRef = doc(db, "clients", client.id, "onboarding", "data")
+      const onboardingSnap = await getDoc(onboardingRef)
+      
+      if (onboardingSnap.exists()) {
+        setOnboardingData(onboardingSnap.data() as OnboardingData)
+      }
+    } catch (error) {
+      console.error("Erreur lors de la récupération des données d'onboarding:", error)
+    } finally {
+      setLoadingOnboarding(false)
+    }
+  }
+
+  const toggleOnboardingData = () => {
+    if (!showOnboardingData && !onboardingData) {
+      fetchOnboardingData()
+    }
+    setShowOnboardingData(!showOnboardingData)
+  }
+
+  const downloadImage = async (imageUrl: string, filename: string) => {
+    try {
+      // Utiliser notre API route pour télécharger avec les bons headers
+      const downloadUrl = `/api/download-image?url=${encodeURIComponent(imageUrl)}&filename=${encodeURIComponent(filename)}`
+      const link = document.createElement('a')
+      link.href = downloadUrl
+      link.download = filename
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+    } catch (error) {
+      console.error('Erreur lors du téléchargement:', error)
+      // Fallback: ouvrir dans un nouvel onglet
+      window.open(imageUrl, '_blank')
+    }
+  }
+
+  const downloadAllImages = async (images: string[], category: string) => {
+    if (!images || images.length === 0) return
+    
+    // Pour éviter les problèmes CORS, on télécharge les images une par une
+    for (let i = 0; i < images.length; i++) {
+      const extension = images[i].split('.').pop()?.split('?')[0] || 'jpg'
+      await downloadImage(images[i], `${category}_${i + 1}.${extension}`)
+      // Petit délai entre les téléchargements pour éviter de surcharger le navigateur
+      await new Promise(resolve => setTimeout(resolve, 800))
+    }
   }
 
   const handleInputChange = (field: string, value: any) => {
@@ -408,6 +503,348 @@ export function EditClientModal({ client, isOpen, onClose, onClientUpdated }: Ed
                   </div>
                 </div>
               </div>
+
+              {/* Section données d'onboarding */}
+              {(client.onboardingCompleted || client.onboarding) && (
+                <>
+                  <Separator />
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <FileText className="w-4 h-4" />
+                        <h3 className="font-semibold">Données d'onboarding</h3>
+                        <Badge variant="secondary" className="text-xs">
+                          Complété
+                        </Badge>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={toggleOnboardingData}
+                        disabled={loadingOnboarding}
+                      >
+                        {loadingOnboarding ? (
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600"></div>
+                        ) : showOnboardingData ? (
+                          <>
+                            <ChevronUp className="w-4 h-4 mr-1" />
+                            Masquer
+                          </>
+                        ) : (
+                          <>
+                            <ChevronDown className="w-4 h-4 mr-1" />
+                            Afficher
+                          </>
+                        )}
+                      </Button>
+                    </div>
+
+                    {showOnboardingData && onboardingData && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="space-y-6 p-4 bg-gray-50 rounded-lg border"
+                      >
+                        {/* Informations personnelles onboarding */}
+                        <div className="space-y-3">
+                          <h4 className="font-medium text-sm text-gray-700 flex items-center gap-2">
+                            <User className="w-4 h-4" />
+                            Informations personnelles
+                          </h4>
+                          <div className="grid grid-cols-2 gap-3 text-sm">
+                            <div>
+                              <span className="font-medium text-gray-600">Prénom:</span>
+                              <p className="text-gray-800">{onboardingData.prenom}</p>
+                            </div>
+                            <div>
+                              <span className="font-medium text-gray-600">Nom:</span>
+                              <p className="text-gray-800">{onboardingData.nom}</p>
+                            </div>
+                            <div>
+                              <span className="font-medium text-gray-600">Email:</span>
+                              <p className="text-gray-800">{onboardingData.email}</p>
+                            </div>
+                            <div>
+                              <span className="font-medium text-gray-600">Téléphone:</span>
+                              <p className="text-gray-800">{onboardingData.telephone}</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        <Separator />
+
+                        {/* Informations entreprise onboarding */}
+                        <div className="space-y-3">
+                          <h4 className="font-medium text-sm text-gray-700 flex items-center gap-2">
+                            <Building className="w-4 h-4" />
+                            Informations entreprise
+                          </h4>
+                          <div className="grid grid-cols-2 gap-3 text-sm">
+                            <div>
+                              <span className="font-medium text-gray-600">Nom de l'entreprise:</span>
+                              <p className="text-gray-800">{onboardingData.nomEntreprise}</p>
+                            </div>
+                            <div>
+                              <span className="font-medium text-gray-600">Raison sociale:</span>
+                              <p className="text-gray-800">{onboardingData.raisonSociale}</p>
+                            </div>
+                            <div>
+                              <span className="font-medium text-gray-600">Adresse:</span>
+                              <p className="text-gray-800">{onboardingData.adresseEntreprise}</p>
+                            </div>
+                            <div>
+                              <span className="font-medium text-gray-600">Code postal:</span>
+                              <p className="text-gray-800">{onboardingData.codePostal}</p>
+                            </div>
+                            <div>
+                              <span className="font-medium text-gray-600">Ville:</span>
+                              <p className="text-gray-800">{onboardingData.ville}</p>
+                            </div>
+                            <div>
+                              <span className="font-medium text-gray-600">Année de création:</span>
+                              <p className="text-gray-800">{onboardingData.anneeCreation}</p>
+                            </div>
+                            <div>
+                              <span className="font-medium text-gray-600">Nombre de collaborateurs:</span>
+                              <p className="text-gray-800">{onboardingData.nombreCollaborateurs}</p>
+                            </div>
+                            <div>
+                              <span className="font-medium text-gray-600">Rayon d'intervention:</span>
+                              <p className="text-gray-800">{onboardingData.rayonIntervention} km</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        <Separator />
+
+                        {/* Services et expertise */}
+                        <div className="space-y-3">
+                          <h4 className="font-medium text-sm text-gray-700 flex items-center gap-2">
+                            <Briefcase className="w-4 h-4" />
+                            Services et expertise
+                          </h4>
+                          <div className="space-y-3 text-sm">
+                            <div>
+                              <span className="font-medium text-gray-600">Prestations:</span>
+                              <p className="text-gray-800 mt-1">{onboardingData.prestation}</p>
+                            </div>
+                            {onboardingData.prestationsDetaillees && (
+                              <div>
+                                <span className="font-medium text-gray-600">Prestations détaillées:</span>
+                                <p className="text-gray-800 mt-1 whitespace-pre-wrap">{onboardingData.prestationsDetaillees}</p>
+                              </div>
+                            )}
+                            {onboardingData.descriptionEntreprise && (
+                              <div>
+                                <span className="font-medium text-gray-600">Description de l'entreprise:</span>
+                                <p className="text-gray-800 mt-1 whitespace-pre-wrap">{onboardingData.descriptionEntreprise}</p>
+                              </div>
+                            )}
+                            {onboardingData.histoireCreateur && (
+                              <div>
+                                <span className="font-medium text-gray-600">Histoire du créateur:</span>
+                                <p className="text-gray-800 mt-1 whitespace-pre-wrap">{onboardingData.histoireCreateur}</p>
+                              </div>
+                            )}
+                            {onboardingData.formations && (
+                              <div>
+                                <span className="font-medium text-gray-600">Formations et qualifications:</span>
+                                <p className="text-gray-800 mt-1 whitespace-pre-wrap">{onboardingData.formations}</p>
+                              </div>
+                            )}
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <span className="font-medium text-gray-600">Certifications:</span>
+                                <p className="text-gray-800">{onboardingData.certification}</p>
+                              </div>
+                              <div>
+                                <span className="font-medium text-gray-600">Garanties:</span>
+                                <p className="text-gray-800">{onboardingData.garanties}</p>
+                              </div>
+                            </div>
+                            {onboardingData.partenaire && (
+                              <div>
+                                <span className="font-medium text-gray-600">Partenaires:</span>
+                                <p className="text-gray-800">{onboardingData.partenaire}</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Site web */}
+                        {onboardingData.siteWebExistant && (
+                          <>
+                            <Separator />
+                            <div className="space-y-3">
+                              <h4 className="font-medium text-sm text-gray-700 flex items-center gap-2">
+                                <Globe className="w-4 h-4" />
+                                Site web
+                              </h4>
+                              <div className="text-sm">
+                                <span className="font-medium text-gray-600">URL du site web:</span>
+                                <p className="text-gray-800">
+                                  <a href={onboardingData.siteWebURL} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                                    {onboardingData.siteWebURL}
+                                  </a>
+                                </p>
+                              </div>
+                            </div>
+                          </>
+                        )}
+
+                        {/* Images */}
+                        {((onboardingData.chantiersImages && onboardingData.chantiersImages.length > 0) || 
+                          (onboardingData.employesImages && onboardingData.employesImages.length > 0) || 
+                          onboardingData.logoImage) && (
+                          <>
+                            <Separator />
+                            <div className="space-y-3">
+                              <h4 className="font-medium text-sm text-gray-700 flex items-center gap-2">
+                                <ImageIcon className="w-4 h-4" />
+                                Images
+                              </h4>
+                              <div className="space-y-3">
+                                {onboardingData.logoImage && (
+                                  <div>
+                                    <div className="flex items-center justify-between">
+                                      <span className="font-medium text-gray-600 text-sm">Logo:</span>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => {
+                                          const extension = onboardingData.logoImage!.split('.').pop()?.split('?')[0] || 'jpg'
+                                          downloadImage(onboardingData.logoImage!, `logo.${extension}`)
+                                        }}
+                                        className="h-6 px-2 text-xs"
+                                      >
+                                        <Download className="w-3 h-3 mr-1" />
+                                        Télécharger
+                                      </Button>
+                                    </div>
+                                    <div className="mt-1">
+                                      <img src={onboardingData.logoImage} alt="Logo" className="h-16 w-auto object-contain border rounded" />
+                                    </div>
+                                  </div>
+                                )}
+                                {onboardingData.chantiersImages && onboardingData.chantiersImages.length > 0 && (
+                                  <div>
+                                    <div className="flex items-center justify-between">
+                                      <span className="font-medium text-gray-600 text-sm">Images de chantiers ({onboardingData.chantiersImages.length}):</span>
+                                      <div className="flex gap-1">
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          onClick={() => downloadAllImages(onboardingData.chantiersImages!, 'chantiers')}
+                                          className="h-6 px-2 text-xs"
+                                        >
+                                          <Archive className="w-3 h-3 mr-1" />
+                                          Tout télécharger
+                                        </Button>
+                                      </div>
+                                    </div>
+                                    <div className="mt-1 flex flex-wrap gap-2">
+                                      {onboardingData.chantiersImages.slice(0, 4).map((image, index) => (
+                                        <div key={index} className="relative group">
+                                          <img src={image} alt={`Chantier ${index + 1}`} className="h-16 w-16 object-cover border rounded" />
+                                          <Button
+                                            variant="secondary"
+                                            size="sm"
+                                            onClick={() => {
+                                              const extension = image.split('.').pop()?.split('?')[0] || 'jpg'
+                                              downloadImage(image, `chantier_${index + 1}.${extension}`)
+                                            }}
+                                            className="absolute inset-0 bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity h-16 w-16 p-0 rounded"
+                                          >
+                                            <Download className="w-4 h-4" />
+                                          </Button>
+                                        </div>
+                                      ))}
+                                      {onboardingData.chantiersImages.length > 4 && (
+                                        <div className="h-16 w-16 bg-gray-200 border rounded flex items-center justify-center text-xs text-gray-600">
+                                          +{onboardingData.chantiersImages.length - 4}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
+                                {onboardingData.employesImages && onboardingData.employesImages.length > 0 && (
+                                  <div>
+                                    <div className="flex items-center justify-between">
+                                      <span className="font-medium text-gray-600 text-sm">Images d'employés ({onboardingData.employesImages.length}):</span>
+                                      <div className="flex gap-1">
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          onClick={() => downloadAllImages(onboardingData.employesImages!, 'employes')}
+                                          className="h-6 px-2 text-xs"
+                                        >
+                                          <Archive className="w-3 h-3 mr-1" />
+                                          Tout télécharger
+                                        </Button>
+                                      </div>
+                                    </div>
+                                    <div className="mt-1 flex flex-wrap gap-2">
+                                      {onboardingData.employesImages.slice(0, 4).map((image, index) => (
+                                        <div key={index} className="relative group">
+                                          <img src={image} alt={`Employé ${index + 1}`} className="h-16 w-16 object-cover border rounded" />
+                                          <Button
+                                            variant="secondary"
+                                            size="sm"
+                                            onClick={() => {
+                                              const extension = image.split('.').pop()?.split('?')[0] || 'jpg'
+                                              downloadImage(image, `employe_${index + 1}.${extension}`)
+                                            }}
+                                            className="absolute inset-0 bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity h-16 w-16 p-0 rounded"
+                                          >
+                                            <Download className="w-4 h-4" />
+                                          </Button>
+                                        </div>
+                                      ))}
+                                      {onboardingData.employesImages.length > 4 && (
+                                        <div className="h-16 w-16 bg-gray-200 border rounded flex items-center justify-center text-xs text-gray-600">
+                                          +{onboardingData.employesImages.length - 4}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </>
+                        )}
+
+                        {/* Commentaires */}
+                        {onboardingData.commentaire && (
+                          <>
+                            <Separator />
+                            <div className="space-y-3">
+                              <h4 className="font-medium text-sm text-gray-700">Commentaires</h4>
+                              <p className="text-sm text-gray-800 whitespace-pre-wrap">{onboardingData.commentaire}</p>
+                            </div>
+                          </>
+                        )}
+
+                        {/* Date de completion */}
+                        {onboardingData.dateCompletion && (
+                          <>
+                            <Separator />
+                            <div className="text-xs text-gray-500">
+                              Onboarding complété le: {new Date(onboardingData.dateCompletion.seconds * 1000).toLocaleDateString('fr-FR', {
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </div>
+                          </>
+                        )}
+                      </motion.div>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
 
             <div className="flex justify-end gap-2 pt-4">

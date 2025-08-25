@@ -56,9 +56,9 @@ export function Dashboard() {
         {/* Header */}
         <div className="mb-8">
           <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.2, duration: 0.3 }}
             className="flex items-center justify-between mb-4"
           >
             <div className="flex items-center gap-4">

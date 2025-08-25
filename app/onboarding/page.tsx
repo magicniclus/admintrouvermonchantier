@@ -27,7 +27,9 @@ import {
 } from "lucide-react"
 import { doc, setDoc } from "firebase/firestore"
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage"
-import { db, storage } from "@/lib/firebase"
+import { createUserWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth"
+import { db, storage, auth } from "@/lib/firebase"
+import Image from "next/image"
 
 interface OnboardingData {
   // Informations personnelles
@@ -50,6 +52,12 @@ interface OnboardingData {
   garanties: string
   partenaire: string
   
+  // Nouvelles informations détaillées
+  descriptionEntreprise: string
+  histoireCreateur: string
+  prestationsDetaillees: string
+  formations: string
+  
   // Site web et communication
   siteWebExistant: boolean
   siteWebURL: string
@@ -68,6 +76,8 @@ export default function OnboardingPage() {
   const clientId = searchParams.get('clientId')
   const [currentStep, setCurrentStep] = useState(1)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [accountCreated, setAccountCreated] = useState(false)
+  const [passwordResetSent, setPasswordResetSent] = useState(false)
   const [formData, setFormData] = useState<OnboardingData>({
     prenom: "",
     nom: "",
@@ -85,6 +95,10 @@ export default function OnboardingPage() {
     certification: "",
     garanties: "",
     partenaire: "",
+    descriptionEntreprise: "",
+    histoireCreateur: "",
+    prestationsDetaillees: "",
+    formations: "",
     siteWebExistant: false,
     siteWebURL: "",
     commentaire: "",
@@ -93,7 +107,7 @@ export default function OnboardingPage() {
     logoImage: null,
   })
 
-  const totalSteps = 5
+  const totalSteps = 6
   const progress = (currentStep / totalSteps) * 100
 
   const isStepValid = () => {
@@ -103,9 +117,11 @@ export default function OnboardingPage() {
       case 2:
         return formData.nomEntreprise && formData.prestation && formData.adresseEntreprise && formData.codePostal && formData.ville
       case 3:
-        return true // Pas de champs obligatoires dans l'étape 3
+        return formData.descriptionEntreprise && formData.histoireCreateur && formData.prestationsDetaillees
       case 4:
         return true // Pas de champs obligatoires dans l'étape 4
+      case 5:
+        return true // Pas de champs obligatoires dans l'étape 5
       default:
         return true
     }
@@ -132,6 +148,16 @@ export default function OnboardingPage() {
     return await Promise.all(uploadPromises)
   }
 
+  // Fonction pour générer un mot de passe aléatoire
+  const generateRandomPassword = () => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*'
+    let password = ''
+    for (let i = 0; i < 12; i++) {
+      password += chars.charAt(Math.floor(Math.random() * chars.length))
+    }
+    return password
+  }
+
   const handleSubmit = async () => {
     if (!clientId) {
       console.error("Aucun ID client fourni")
@@ -140,10 +166,72 @@ export default function OnboardingPage() {
 
     try {
       setIsSubmitting(true)
-      console.log("Début de la soumission pour client:", clientId)
+      const logs: string[] = []
       
-      // Sauvegarder d'abord les données textuelles sans les images
-      console.log("Sauvegarde des données textuelles...")
+      const addLog = (message: string) => {
+        const timestamp = new Date().toLocaleString('fr-FR')
+        const logEntry = `[${timestamp}] ${message}`
+        console.log(logEntry)
+        logs.push(logEntry)
+      }
+      
+      addLog("Début de la soumission pour client: " + clientId)
+      
+      // 1. Créer le compte Firebase Auth avec un mot de passe aléatoire
+      addLog("Création du compte Firebase Auth...")
+      const randomPassword = generateRandomPassword()
+      let userCredential
+      
+      try {
+        userCredential = await createUserWithEmailAndPassword(auth, formData.email, randomPassword)
+        addLog("Compte Firebase Auth créé: " + userCredential.user.uid)
+        setAccountCreated(true)
+        
+        // 2. Envoyer l'email de bienvenue avec SendGrid
+        addLog("=== DÉBUT ENVOI EMAIL ===")
+        addLog("Email destinataire: " + formData.email)
+        addLog("Prénom: " + formData.prenom)
+        addLog("Nom: " + formData.nom)
+        
+        try {
+          const emailResponse = await fetch('/api/send-welcome-email', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              email: formData.email,
+              firstName: formData.prenom,
+              lastName: formData.nom,
+              clientId: clientId
+            })
+          });
+
+          addLog("Status de la réponse: " + emailResponse.status)
+          const responseData = await emailResponse.json()
+          addLog("Réponse de l'API: " + JSON.stringify(responseData))
+
+          if (emailResponse.ok) {
+            addLog("✅ Email de bienvenue envoyé avec succès")
+            setPasswordResetSent(true)
+          } else {
+            addLog("❌ Erreur lors de l'envoi de l'email: " + JSON.stringify(responseData))
+          }
+        } catch (emailError) {
+          addLog("❌ Erreur réseau lors de l'envoi de l'email: " + emailError)
+        }
+        
+        addLog("=== FIN ENVOI EMAIL ===")
+      } catch (authError: any) {
+        addLog("Erreur lors de la création du compte (non bloquant): " + authError.message)
+        // Si le compte existe déjà, on continue quand même
+        if (authError.code !== 'auth/email-already-in-use') {
+          throw authError
+        }
+      }
+      
+      // 3. Sauvegarder les données textuelles
+      addLog("Sauvegarde des données textuelles...")
       
       // Mettre à jour le document client principal avec les nouvelles données
       const clientUpdateData = {
@@ -163,15 +251,25 @@ export default function OnboardingPage() {
         certification: formData.certification,
         garanties: formData.garanties,
         partenaire: formData.partenaire,
+        descriptionEntreprise: formData.descriptionEntreprise,
+        histoireCreateur: formData.histoireCreateur,
+        prestationsDetaillees: formData.prestationsDetaillees,
+        formations: formData.formations,
         siteWebExistant: formData.siteWebExistant,
         siteWebURL: formData.siteWebURL,
         commentaire: formData.commentaire,
+        onboarding: true,
         onboardingCompleted: true,
-        dateOnboardingCompleted: new Date()
+        dateOnboardingCompleted: new Date(),
+        // Ajouter les données d'abonnement par défaut
+        typeAbonnement: "29€/mois",
+        typeSite: "99€",
+        dateCreationAbonnement: new Date(),
+        firebaseAuthUid: userCredential?.user?.uid || null
       }
 
       await setDoc(doc(db, "clients", clientId), clientUpdateData, { merge: true })
-      console.log("Document client principal mis à jour")
+      addLog("Document client principal mis à jour")
 
       // Sauvegarder dans la collection onboarding (sans images pour l'instant)
       const onboardingDataWithoutImages = {
@@ -183,35 +281,43 @@ export default function OnboardingPage() {
       // Supprimer les objets File avant la sauvegarde
       const { chantiersImages: _, employesImages: __, logoImage: ___, ...dataToSave } = onboardingDataWithoutImages
 
-      await setDoc(doc(db, "onboarding", clientId), dataToSave)
-      console.log("Données onboarding sauvegardées")
+      await setDoc(doc(db, "clients", clientId, "onboarding", "data"), dataToSave)
+      addLog("Données onboarding sauvegardées dans le sous-dossier du client")
 
       // Essayer d'uploader les images (optionnel - ne bloque pas si ça échoue)
       let chantiersImageUrls: string[] = []
       let employesImageUrls: string[] = []
       let logoImageUrl: string = ""
 
-      console.log("Tentative d'upload des images...")
+      addLog("Tentative d'upload des images...")
 
       try {
         if (formData.chantiersImages.length > 0) {
-          console.log("Upload des images de chantiers...")
+          addLog("Upload des images de chantiers...")
           chantiersImageUrls = await uploadImages(formData.chantiersImages, "chantiers")
-          console.log("Images chantiers uploadées:", chantiersImageUrls)
+          addLog("Images chantiers uploadées: " + chantiersImageUrls.length + " images")
         }
 
         if (formData.employesImages.length > 0) {
-          console.log("Upload des images d'employés...")
-          employesImageUrls = await uploadImages(formData.employesImages, "employes")
-          console.log("Images employés uploadées:", employesImageUrls)
+          addLog("Upload des images d'employés...")
+          try {
+            employesImageUrls = await uploadImages(formData.employesImages, "employes")
+            addLog("Images employés uploadées: " + employesImageUrls.length + " images")
+          } catch (employeError) {
+            addLog("Erreur upload images employés: " + employeError)
+          }
         }
 
         if (formData.logoImage) {
-          console.log("Upload du logo...")
-          const logoRef = ref(storage, `clients/${clientId}/logo/${Date.now()}_${formData.logoImage.name}`)
-          await uploadBytes(logoRef, formData.logoImage)
-          logoImageUrl = await getDownloadURL(logoRef)
-          console.log("Logo uploadé:", logoImageUrl)
+          addLog("Upload du logo...")
+          try {
+            const logoRef = ref(storage, `clients/${clientId}/logo/${Date.now()}_${formData.logoImage.name}`)
+            await uploadBytes(logoRef, formData.logoImage)
+            logoImageUrl = await getDownloadURL(logoRef)
+            addLog("Logo uploadé avec succès")
+          } catch (logoError) {
+            addLog("Erreur upload logo: " + logoError)
+          }
         }
 
         // Mettre à jour avec les URLs des images si l'upload a réussi
@@ -222,22 +328,25 @@ export default function OnboardingPage() {
             logoImage: logoImageUrl
           }, { merge: true })
           
-          await setDoc(doc(db, "onboarding", clientId), {
+          await setDoc(doc(db, "clients", clientId, "onboarding", "data"), {
             chantiersImages: chantiersImageUrls,
             employesImages: employesImageUrls,
             logoImage: logoImageUrl
           }, { merge: true })
           
-          console.log("URLs des images sauvegardées")
+          addLog("URLs des images sauvegardées")
         }
       } catch (imageError) {
-        console.warn("Erreur lors de l'upload des images (non bloquant):", imageError)
-        alert("Les données ont été sauvegardées mais les images n'ont pas pu être uploadées. Vérifiez les permissions Firebase Storage.")
+        addLog("Erreur lors de l'upload des images (non bloquant): " + imageError)
       }
 
+      addLog("✅ Onboarding terminé avec succès")
       
-      // Redirection vers une page de confirmation ou dashboard
-      window.location.href = "/dashboard?tab=clients"
+      // Sauvegarder les logs dans le localStorage
+      localStorage.setItem('onboardingLogs', JSON.stringify(logs))
+      
+      // Redirection vers la page de remerciement
+      window.location.href = `/merci?firstName=${encodeURIComponent(formData.prenom)}&email=${encodeURIComponent(formData.email)}`
       
     } catch (error) {
       console.error("Erreur lors de la sauvegarde:", error)
@@ -464,6 +573,9 @@ export default function OnboardingPage() {
                   onChange={(e) => setFormData({ ...formData, rayonIntervention: e.target.value })}
                   placeholder="50"
                 />
+                <p className="text-sm text-gray-500">
+                  💡 Zone d'intervention à partir de votre ville de base pour optimiser les campagnes Google Ads
+                </p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="certification">Certifications</Label>
@@ -479,6 +591,71 @@ export default function OnboardingPage() {
         )
 
       case 3:
+        return (
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            className="space-y-6"
+          >
+            <div className="text-center mb-8">
+              <Building className="w-16 h-16 mx-auto mb-4 text-blue-600" />
+              <h2 className="text-2xl font-bold text-gray-900">Votre histoire et expertise</h2>
+              <p className="text-gray-600">Parlez-nous de votre parcours et de vos compétences</p>
+            </div>
+
+            <div className="space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="descriptionEntreprise">Description de l'entreprise *</Label>
+                <Textarea
+                  id="descriptionEntreprise"
+                  value={formData.descriptionEntreprise}
+                  onChange={(e) => setFormData({ ...formData, descriptionEntreprise: e.target.value })}
+                  placeholder="Décrivez votre entreprise, vos valeurs, ce qui vous différencie..."
+                  rows={4}
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="histoireCreateur">Histoire du créateur *</Label>
+                <Textarea
+                  id="histoireCreateur"
+                  value={formData.histoireCreateur}
+                  onChange={(e) => setFormData({ ...formData, histoireCreateur: e.target.value })}
+                  placeholder="Votre parcours, votre expérience, ce qui vous a amené à créer cette entreprise..."
+                  rows={4}
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="prestationsDetaillees">Prestations détaillées *</Label>
+                <Textarea
+                  id="prestationsDetaillees"
+                  value={formData.prestationsDetaillees}
+                  onChange={(e) => setFormData({ ...formData, prestationsDetaillees: e.target.value })}
+                  placeholder="Détaillez vos services : rénovation, construction, spécialités techniques, matériaux utilisés..."
+                  rows={4}
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="formations">Formations et qualifications</Label>
+                <Textarea
+                  id="formations"
+                  value={formData.formations}
+                  onChange={(e) => setFormData({ ...formData, formations: e.target.value })}
+                  placeholder="Vos formations, diplômes, certifications professionnelles, stages, apprentissages..."
+                  rows={3}
+                />
+              </div>
+            </div>
+          </motion.div>
+        )
+
+      case 4:
         return (
           <motion.div
             initial={{ opacity: 0, x: 20 }}
@@ -535,7 +712,7 @@ export default function OnboardingPage() {
                   id="partenaire"
                   value={formData.partenaire}
                   onChange={(e) => setFormData({ ...formData, partenaire: e.target.value })}
-                  placeholder="Partenaires commerciaux"
+                  placeholder="Effy, Banque Populaire, Leroy Merlin, etc."
                 />
               </div>
             </div>
@@ -553,7 +730,7 @@ export default function OnboardingPage() {
           </motion.div>
         )
 
-      case 4:
+      case 5:
         return (
           <motion.div
             initial={{ opacity: 0, x: 20 }}
@@ -752,7 +929,7 @@ export default function OnboardingPage() {
           </motion.div>
         )
 
-      case 5:
+      case 6:
         return (
           <motion.div
             initial={{ opacity: 0, x: 20 }}
@@ -765,6 +942,40 @@ export default function OnboardingPage() {
               <h2 className="text-2xl font-bold text-gray-900">Récapitulatif</h2>
               <p className="text-gray-600">Vérifiez vos informations avant de continuer</p>
             </div>
+
+            {/* Notifications de création de compte */}
+            {(accountCreated || passwordResetSent) && (
+              <div className="space-y-4 mb-6">
+                {accountCreated && (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <div className="flex items-center">
+                      <CheckCircle className="w-5 h-5 text-green-600 mr-3" />
+                      <div>
+                        <h3 className="font-semibold text-green-800">Compte créé avec succès !</h3>
+                        <p className="text-sm text-green-700">
+                          Votre compte utilisateur a été automatiquement créé avec l'email : <strong>{formData.email}</strong>
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {passwordResetSent && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div className="flex items-center">
+                      <CheckCircle className="w-5 h-5 text-blue-600 mr-3" />
+                      <div>
+                        <h3 className="font-semibold text-blue-800">Email de configuration envoyé !</h3>
+                        <p className="text-sm text-blue-700">
+                          Un email vous a été envoyé à <strong>{formData.email}</strong> pour définir votre mot de passe.
+                          Vérifiez votre boîte de réception (et vos spams).
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="space-y-6">
               <Card>
@@ -813,6 +1024,17 @@ export default function OnboardingPage() {
 
               <Card>
                 <CardHeader>
+                  <CardTitle className="text-lg">Abonnement et services</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <p><strong>Type d'abonnement :</strong> 29€/mois</p>
+                  <p><strong>Type de site :</strong> 99€</p>
+                  <p className="text-sm text-gray-600">Ces tarifs par défaut peuvent être ajustés selon vos besoins.</p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
                   <CardTitle className="text-lg">Images et visuels</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
@@ -839,11 +1061,12 @@ export default function OnboardingPage() {
           animate={{ opacity: 1, y: 0 }}
           className="text-center mb-8"
         >
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent mb-4">
-            Bienvenue chez TrouverMonChantier
+          <Image src="/logo.png" alt="Logo" width={150} height={150} className="mx-auto" />
+          <h1 className="text-4xl font-bold text-gray-900 mb-4 mt-10">
+            Bienvenue chez Trouver-mon-chantier.fr
           </h1>
           <p className="text-xl text-gray-600">
-            Configurons votre profil en quelques étapes simples
+            Configurons votre profil en quelques étapes simples afin que nous ayons toutes les informations nécessaires pour vous aider à trouver des clients.
           </p>
         </motion.div>
 
