@@ -1,0 +1,38 @@
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  # Disable smart detection for Firebase API keys since they are meant to be public
+  SECRETS_SCAN_SMART_DETECTION_ENABLED = "false"
+
+# Alternative approach: specifically omit the Firebase API key pattern
+# SECRETS_SCAN_SMART_DETECTION_OMIT_VALUES = "AIza*"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+# Headers for static assets
+[[headers]]
+  for = "/_next/static/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# Image optimization redirects
+[[redirects]]
+  from = "/_next/image"
+  to = "/.netlify/images?url=:url&w=:width&q=:quality"
+  status = 200
+  [redirects.query]
+    url = ":url"
+    w = ":width"
+    q = ":quality"
+
+[[redirects]]
+  from = "/_ipx/*"
+  to = "/.netlify/images?url=:url&w=:width&q=:quality"
+  status = 200
+  [redirects.query]
+    url = ":url"
+    w = ":width"
+    q = ":quality"
