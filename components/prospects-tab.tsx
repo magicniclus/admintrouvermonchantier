@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { collection, query, orderBy, getDocs, doc, updateDoc, deleteDoc, addDoc, Timestamp } from "firebase/firestore"
+import { collection, getDocs, Timestamp } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"

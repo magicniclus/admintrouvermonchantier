@@ -4,8 +4,9 @@ import { useSearchParams } from "next/navigation"
 import { motion } from "framer-motion"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { CheckCircle, Mail, Clock } from "lucide-react"
+import { Suspense } from "react"
 
-export default function MerciPage() {
+function MerciContent() {
   const searchParams = useSearchParams()
   const firstName = searchParams.get('firstName') || 'Client'
   const email = searchParams.get('email') || ''
@@ -69,5 +70,13 @@ export default function MerciPage() {
 
       </motion.div>
     </div>
+  )
+}
+
+export default function MerciPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Chargement...</div>}>
+      <MerciContent />
+    </Suspense>
   )
 }

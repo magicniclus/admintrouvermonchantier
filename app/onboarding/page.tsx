@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import { motion } from "framer-motion"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -70,7 +70,7 @@ interface OnboardingData {
   logoImage: File | null
 }
 
-export default function OnboardingPage() {
+function OnboardingContent() {
   const searchParams = useSearchParams()
   const clientId = searchParams.get('clientId')
   const [currentStep, setCurrentStep] = useState(1)
@@ -222,9 +222,11 @@ export default function OnboardingPage() {
       }
 
       // Supprimer les objets File avant la sauvegarde
-      const { chantiersImages: _chantiersImages, employesImages: _employesImages, logoImage: _logoImage, ...dataToSave } = onboardingDataWithoutImages
+      const { chantiersImages, employesImages, logoImage, ...dataToSave } = onboardingDataWithoutImages
 
-      await setDoc(doc(db, "clients", clientId, "onboarding", "data"), dataToSave)
+      await Promise.all([
+        setDoc(doc(db, "clients", clientId, "onboarding", "data"), dataToSave)
+      ])
       
       // Essayer d&apos;uploader les images (optionnel - ne bloque pas si ça échoue)
       let chantiersImageUrls: string[] = []
@@ -1054,5 +1056,13 @@ export default function OnboardingPage() {
         </Card>
       </div>
     </div>
+  )
+}
+
+export default function OnboardingPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Chargement...</div>}>
+      <OnboardingContent />
+    </Suspense>
   )
 }

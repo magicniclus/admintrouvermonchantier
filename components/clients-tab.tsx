@@ -46,7 +46,6 @@ export function ClientsTab() {
   const [loading, setLoading] = useState(true)
   const [sortBy, setSortBy] = useState("date-desc")
   const [editingClient, setEditingClient] = useState<Client | null>(null)
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
 
   const getField = (client: Client, key: string): string => {
     const value = client[key] ?? 

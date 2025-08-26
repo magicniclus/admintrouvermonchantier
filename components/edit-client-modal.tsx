@@ -156,7 +156,7 @@ function normalizeClient(c: ClientRaw): Client {
 }
 
 /** Prépare les données à écrire en base : uniquement le schéma propre camelCase */
-function toFirestoreUpdate(data: Client) {
+const _toFirestoreUpdate = (data: Partial<Client>) => {
   const {
     id, // on l’enlève
     ...rest

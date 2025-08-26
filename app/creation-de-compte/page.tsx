@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import { motion } from "framer-motion"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -59,7 +59,7 @@ interface OnboardingData {
   status?: string
 }
 
-export default function CreationDeComptePage() {
+function CreationDeCompteContent() {
   const searchParams = useSearchParams()
   const uid = searchParams.get('uid')
   
@@ -419,5 +419,13 @@ export default function CreationDeComptePage() {
         )}
       </div>
     </div>
+  )
+}
+
+export default function CreationDeComptePage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Chargement...</div>}>
+      <CreationDeCompteContent />
+    </Suspense>
   )
 }

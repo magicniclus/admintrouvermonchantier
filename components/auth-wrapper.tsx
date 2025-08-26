@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { onAuthStateChanged } from "firebase/auth"
+import { onAuthStateChanged, User } from "firebase/auth"
 import { doc, getDoc } from "firebase/firestore"
 import { auth, db } from "@/lib/firebase"
 import { Loading } from "@/components/ui/loading"
@@ -10,7 +10,7 @@ import { LoginForm } from "@/components/login-form"
 
 export function AuthWrapper() {
   const [loading, setLoading] = useState(true)
-  const [user, setUser] = useState<unknown>(null)
+  const [user, setUser] = useState<User | null>(null)
   const router = useRouter()
 
   // Vérifie le rôle en lisant admins/{uid}
