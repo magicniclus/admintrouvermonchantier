@@ -1,13 +1,13 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { motion } from "framer-motion"
-import { collection, getDocs } from "firebase/firestore"
+import { collection, query, orderBy, getDocs, doc, updateDoc, deleteDoc, addDoc, Timestamp } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { EditProspectModal } from "@/components/edit-prospect-modal"
+import { motion } from "framer-motion"
 import {
   Search,
   Plus,
@@ -30,7 +30,7 @@ interface Prospect {
   Entreprise: string
   Metier?: string
   Etape: string
-  Date: any
+  Date: Date | Timestamp
   RGPD: boolean
   Commentaire?: string
 }
@@ -118,9 +118,9 @@ export function ProspectsTab() {
     .sort((a, b) => {
       switch (prospectSortBy) {
         case "date-desc":
-          return (b.Date?.toDate?.()?.getTime() || 0) - (a.Date?.toDate?.()?.getTime() || 0)
+          return (b.Date instanceof Timestamp ? b.Date.toDate().getTime() : (b.Date?.getTime() || 0)) - (a.Date instanceof Timestamp ? a.Date.toDate().getTime() : (a.Date?.getTime() || 0))
         case "date-asc":
-          return (a.Date?.toDate?.()?.getTime() || 0) - (b.Date?.toDate?.()?.getTime() || 0)
+          return (a.Date instanceof Timestamp ? a.Date.toDate().getTime() : (a.Date?.getTime() || 0)) - (b.Date instanceof Timestamp ? b.Date.toDate().getTime() : (b.Date?.getTime() || 0))
         case "name-asc":
           return `${a.Prenom || ""} ${a.Nom || ""}`.localeCompare(`${b.Prenom || ""} ${b.Nom || ""}`)
         case "name-desc":
@@ -133,10 +133,10 @@ export function ProspectsTab() {
       }
     })
 
-  const formatDate = (firebaseDate: any) => {
+  const formatDate = (firebaseDate: Date | Timestamp) => {
     if (!firebaseDate) return "Date inconnue"
     try {
-      const date = firebaseDate?.toDate ? firebaseDate.toDate() : new Date(firebaseDate)
+      const date = firebaseDate instanceof Timestamp ? firebaseDate.toDate() : firebaseDate
       return date.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" })
     } catch {
       return "Date invalide"

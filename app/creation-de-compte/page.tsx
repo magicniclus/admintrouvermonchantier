@@ -12,17 +12,10 @@ import { Separator } from "@/components/ui/separator"
 import {
   User,
   Building,
-  Mail,
-  Phone,
-  MapPin,
-  Calendar,
   CheckCircle,
   Loader2,
   AlertCircle,
-  Globe,
   Briefcase,
-  Award,
-  Users,
 } from "lucide-react"
 import { doc, getDoc } from "firebase/firestore"
 import { db } from "@/lib/firebase"
@@ -32,10 +25,10 @@ interface ClientData {
   email: string
   status: string
   uidClient: string
-  dateCreation: any
+  dateCreation: { seconds: number } | null
   
   // Autres champs possibles
-  [key: string]: any
+  [key: string]: unknown
 }
 
 interface OnboardingData {
@@ -62,7 +55,7 @@ interface OnboardingData {
   siteWebExistant: boolean
   siteWebURL: string
   commentaire: string
-  dateCompletion?: any
+  dateCompletion?: { seconds: number } | null
   status?: string
 }
 
@@ -78,15 +71,6 @@ export default function CreationDeComptePage() {
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [isCreatingAccount, setIsCreatingAccount] = useState(false)
-
-  useEffect(() => {
-    if (uid) {
-      fetchClientData()
-    } else {
-      setError("UID client manquant dans l'URL")
-      setLoading(false)
-    }
-  }, [uid])
 
   const fetchClientData = async () => {
     if (!uid) return
@@ -120,6 +104,15 @@ export default function CreationDeComptePage() {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    if (uid) {
+      fetchClientData()
+    } else {
+      setError("UID client manquant dans l'URL")
+      setLoading(false)
+    }
+  }, [uid])
 
   const handleCreateAccount = async () => {
     if (!email || !password || !confirmPassword) {
@@ -262,7 +255,7 @@ export default function CreationDeComptePage() {
                       </h4>
                       <div className="grid grid-cols-1 gap-3 text-sm">
                         <div>
-                          <span className="font-medium text-gray-600">Nom de l'entreprise:</span>
+                          <span className="font-medium text-gray-600">Nom de l&apos;entreprise:</span>
                           <p className="text-gray-800">{onboardingData.nomEntreprise}</p>
                         </div>
                         <div>
@@ -372,8 +365,7 @@ export default function CreationDeComptePage() {
                 </Button>
 
                 <div className="text-xs text-gray-500 text-center">
-                  En créant votre compte, vous acceptez nos conditions d'utilisation
-                  et notre politique de confidentialité.
+                  Votre compte a été créé avec succès ! Vous allez être redirigé vers votre espace d&apos;administration.
                 </div>
               </CardContent>
             </Card>

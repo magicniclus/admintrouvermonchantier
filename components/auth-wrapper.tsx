@@ -10,7 +10,7 @@ import { LoginForm } from "@/components/login-form"
 
 export function AuthWrapper() {
   const [loading, setLoading] = useState(true)
-  const [user, setUser] = useState(null)
+  const [user, setUser] = useState<unknown>(null)
   const router = useRouter()
 
   // Vérifie le rôle en lisant admins/{uid}
@@ -33,6 +33,7 @@ export function AuthWrapper() {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      setUser(currentUser)
       if (currentUser) {
         // Utilisateur connecté, vérifier son rôle
         const isAdmin = await checkAdminRoleByUid(currentUser.uid)

@@ -1,16 +1,16 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { doc, updateDoc, addDoc, deleteDoc, collection } from "firebase/firestore"
+import { doc, updateDoc, addDoc, deleteDoc, collection, Timestamp } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { Checkbox } from "@/components/ui/checkbox"
 import { Separator } from "@/components/ui/separator"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Checkbox } from "@/components/ui/checkbox"
 
 interface Prospect {
   id: string
@@ -21,7 +21,7 @@ interface Prospect {
   Entreprise: string
   Metier?: string
   Etape: string
-  Date: any
+  Date: Date | Timestamp
   RGPD: boolean
   Commentaire?: string
   // Nouveaux champs entreprise
@@ -224,7 +224,7 @@ export function EditProspectModal({ isOpen, onClose, prospect, onProspectUpdated
               
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="edit-nom-entreprise">Nom de l'entreprise</Label>
+                  <Label htmlFor="edit-nom-entreprise">Nom de l&apos;entreprise</Label>
                   <Input
                     id="edit-nom-entreprise"
                     value={formData.NomEntreprise || ""}
@@ -253,7 +253,7 @@ export function EditProspectModal({ isOpen, onClose, prospect, onProspectUpdated
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="edit-secteur">Secteur d'activité</Label>
+                  <Label htmlFor="edit-secteur">Secteur d&apos;activité</Label>
                   <Input
                     id="edit-secteur"
                     value={formData.Secteur || ""}
@@ -333,7 +333,7 @@ export function EditProspectModal({ isOpen, onClose, prospect, onProspectUpdated
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="edit-rayon">Rayon d'intervention (km)</Label>
+                  <Label htmlFor="edit-rayon"><span className="font-medium text-gray-600">Rayon d&apos;intervention:</span> (km)</Label>
                   <Input
                     id="edit-rayon"
                     type="number"

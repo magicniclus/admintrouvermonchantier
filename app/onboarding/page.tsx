@@ -1,9 +1,9 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { motion } from "framer-motion"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -116,9 +116,9 @@ export default function OnboardingPage() {
       case 3:
         return formData.descriptionEntreprise && formData.histoireCreateur && formData.prestationsDetaillees
       case 4:
-        return true // Pas de champs obligatoires dans l'étape 4
+        return true // Pas de champs obligatoires dans l&apos;étape 4
       case 5:
-        return true // Pas de champs obligatoires dans l'étape 5
+        return true // Pas de champs obligatoires dans l&apos;étape 5
       default:
         return true
     }
@@ -155,7 +155,7 @@ export default function OnboardingPage() {
     try {
       setIsSubmitting(true)
       
-      // 1. Envoyer l'email de bienvenue avec SendGrid
+      // 1. Envoyer l&apos;email de bienvenue avec SendGrid
       try {
         const emailResponse = await fetch('/api/send-welcome-email', {
           method: 'POST',
@@ -171,10 +171,10 @@ export default function OnboardingPage() {
         });
 
         if (!emailResponse.ok) {
-          console.error("Erreur lors de l'envoi de l'email:", emailResponse.status)
+          console.error("Erreur lors de l&apos;envoi de l&apos;email:", emailResponse.status)
         }
       } catch (emailError) {
-        console.error("Erreur réseau lors de l'envoi de l'email:", emailError)
+        console.error("Erreur réseau lors de l&apos;envoi de l&apos;email:", emailError)
       }
       
       // 2. Sauvegarder les données textuelles
@@ -205,7 +205,7 @@ export default function OnboardingPage() {
         onboarding: true,
         onboardingCompleted: true,
         dateOnboardingCompleted: new Date(),
-        // Ajouter les données d'abonnement par défaut
+        // Ajouter les données d&apos;abonnement par défaut
         typeAbonnement: "29€/mois",
         typeSite: "99€",
         dateCreationAbonnement: new Date(),
@@ -214,7 +214,7 @@ export default function OnboardingPage() {
 
       await setDoc(doc(db, "clients", clientId), clientUpdateData, { merge: true })
       
-      // Sauvegarder dans la collection onboarding (sans images pour l'instant)
+      // Sauvegarder dans la collection onboarding (sans images pour l&apos;instant)
       const onboardingDataWithoutImages = {
         ...formData,
         dateCompletion: new Date(),
@@ -222,11 +222,11 @@ export default function OnboardingPage() {
       }
 
       // Supprimer les objets File avant la sauvegarde
-      const { chantiersImages: _, employesImages: __, logoImage: ___, ...dataToSave } = onboardingDataWithoutImages
+      const { chantiersImages: _chantiersImages, employesImages: _employesImages, logoImage: _logoImage, ...dataToSave } = onboardingDataWithoutImages
 
       await setDoc(doc(db, "clients", clientId, "onboarding", "data"), dataToSave)
       
-      // Essayer d'uploader les images (optionnel - ne bloque pas si ça échoue)
+      // Essayer d&apos;uploader les images (optionnel - ne bloque pas si ça échoue)
       let chantiersImageUrls: string[] = []
       let employesImageUrls: string[] = []
       let logoImageUrl: string = ""
@@ -246,7 +246,7 @@ export default function OnboardingPage() {
           logoImageUrl = await getDownloadURL(logoRef)
         }
 
-        // Mettre à jour avec les URLs des images si l'upload a réussi
+        // Mettre à jour avec les URLs des images si l&apos;upload a réussi
         if (chantiersImageUrls.length > 0 || employesImageUrls.length > 0 || logoImageUrl) {
           await setDoc(doc(db, "clients", clientId), {
             chantiersImages: chantiersImageUrls,
@@ -261,7 +261,7 @@ export default function OnboardingPage() {
           }, { merge: true })
         }
       } catch (imageError) {
-        console.error("Erreur lors de l'upload des images (non bloquant):", imageError)
+        console.error("Erreur lors de l&apos;upload des images (non bloquant):", imageError)
       }
 
       // Redirection vers la page de remerciement
@@ -385,7 +385,7 @@ export default function OnboardingPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <Label htmlFor="nomEntreprise">Nom de l'entreprise *</Label>
+                <Label htmlFor="nomEntreprise">Nom de l&apos;entreprise *</Label>
                 <Input
                   id="nomEntreprise"
                   value={formData.nomEntreprise}
@@ -404,7 +404,7 @@ export default function OnboardingPage() {
                 />
               </div>
               <div className="md:col-span-2">
-                <Label htmlFor="adresseEntreprise">Adresse de l'entreprise *</Label>
+                <Label htmlFor="adresseEntreprise">Adresse de l&apos;entreprise *</Label>
                 <Input
                   id="adresseEntreprise"
                   value={formData.adresseEntreprise}
@@ -483,7 +483,7 @@ export default function OnboardingPage() {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="rayonIntervention">Rayon d'intervention (km)</Label>
+                <Label htmlFor="rayonIntervention">Rayon d&apos;intervention (km)</Label>
                 <Input
                   id="rayonIntervention"
                   type="number"
@@ -493,7 +493,7 @@ export default function OnboardingPage() {
                   placeholder="50"
                 />
                 <p className="text-sm text-gray-500">
-                  💡 Zone d'intervention à partir de votre ville de base pour optimiser les campagnes Google Ads
+                  💡 Zone d&apos;intervention à partir de votre ville de base pour optimiser les campagnes Google Ads
                 </p>
               </div>
               <div className="space-y-2">
@@ -525,12 +525,12 @@ export default function OnboardingPage() {
 
             <div className="space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="descriptionEntreprise">Description de l'entreprise *</Label>
+                <Label htmlFor="descriptionEntreprise">Description de l&apos;entreprise *</Label>
                 <Textarea
                   id="descriptionEntreprise"
                   value={formData.descriptionEntreprise}
                   onChange={(e) => setFormData({ ...formData, descriptionEntreprise: e.target.value })}
-                  placeholder="Décrivez votre entreprise, vos valeurs, ce qui vous différencie..."
+                  placeholder="Décrivez l&apos;histoire de votre entreprise, votre parcours en tant que créateur, vos motivations et ce qui vous distingue de la concurrence..."
                   rows={4}
                   required
                 />
@@ -705,10 +705,12 @@ export default function OnboardingPage() {
                 <div className="grid grid-cols-3 gap-4">
                   {formData.chantiersImages.map((image, index) => (
                     <div key={index} className="relative">
-                      <img
+                      <Image
                         src={URL.createObjectURL(image)}
                         alt={`Chantier ${index + 1}`}
                         className="w-full h-24 object-cover rounded-lg"
+                        width={96}
+                        height={96}
                       />
                       <Button
                         variant="destructive"
@@ -728,7 +730,7 @@ export default function OnboardingPage() {
             <div className="space-y-4">
               <div className="flex items-center gap-2">
                 <Users className="w-5 h-5 text-blue-600" />
-                <h3 className="font-semibold">Photos de l'équipe (max 5)</h3>
+                <h3 className="font-semibold">Photos de l&apos;équipe (max 5)</h3>
               </div>
               <div
                 className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors"
@@ -740,7 +742,7 @@ export default function OnboardingPage() {
                 onDragEnter={(e) => e.preventDefault()}
               >
                 <Upload className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-                <p className="text-gray-600 mb-2">Glissez-déposez vos photos d'équipe ici ou</p>
+                <p className="text-gray-600 mb-2">Glissez-déposez vos photos d&apos;équipe ici ou</p>
                 <Button
                   variant="outline"
                   onClick={() => {
@@ -766,10 +768,12 @@ export default function OnboardingPage() {
                 <div className="grid grid-cols-3 gap-4">
                   {formData.employesImages.map((image, index) => (
                     <div key={index} className="relative">
-                      <img
+                      <Image
                         src={URL.createObjectURL(image)}
                         alt={`Employé ${index + 1}`}
                         className="w-full h-24 object-cover rounded-lg"
+                        width={96}
+                        height={96}
                       />
                       <Button
                         variant="destructive"
@@ -789,12 +793,12 @@ export default function OnboardingPage() {
             <div className="space-y-4">
               <div className="flex items-center gap-2">
                 <Palette className="w-5 h-5 text-blue-600" />
-                <h3 className="font-semibold">Logo de l'entreprise</h3>
+                <h3 className="font-semibold">Logo de l&apos;entreprise</h3>
               </div>
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <p className="text-sm text-blue-800 mb-3">
                   💡 <strong>Pas de logo ?</strong> Nous pouvons en créer un pour vous ! 
-                  Contactez-nous après l'onboarding pour discuter de vos besoins en identité visuelle.
+                  Contactez-nous après l&apos;onboarding pour discuter de vos besoins en identité visuelle.
                 </p>
               </div>
               <div
@@ -808,10 +812,12 @@ export default function OnboardingPage() {
               >
                 {formData.logoImage ? (
                   <div className="relative inline-block">
-                    <img
+                    <Image
                       src={URL.createObjectURL(formData.logoImage)}
                       alt="Logo"
                       className="w-32 h-32 object-contain mx-auto rounded-lg"
+                      width={128}
+                      height={128}
                     />
                     <Button
                       variant="destructive"
@@ -895,7 +901,7 @@ export default function OnboardingPage() {
                   <CardTitle className="text-lg">Informations entreprise</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                  <p><strong>Nom de l'entreprise :</strong> {formData.nomEntreprise}</p>
+                  <p><strong>Nom de l&apos;entreprise :</strong> {formData.nomEntreprise}</p>
                   <p><strong>Raison sociale :</strong> {formData.raisonSociale}</p>
                   <p><strong>Adresse :</strong> {formData.adresseEntreprise}</p>
                   <p><strong>Code postal :</strong> {formData.codePostal}</p>
@@ -903,7 +909,7 @@ export default function OnboardingPage() {
                   <p><strong>Année de création :</strong> {formData.anneeCreation}</p>
                   <p><strong>Nombre de collaborateurs :</strong> {formData.nombreCollaborateurs}</p>
                   <p><strong>Prestations proposées :</strong> {formData.prestation}</p>
-                  <p><strong>Rayon d'intervention :</strong> {formData.rayonIntervention}</p>
+                  <p><strong>Rayon d&apos;intervention :</strong> {formData.rayonIntervention}</p>
                   <p><strong>Certification :</strong> {formData.certification}</p>
                   <p><strong>Garanties :</strong> {formData.garanties}</p>
                   <p><strong>Partenaire :</strong> {formData.partenaire}</p>
@@ -927,8 +933,8 @@ export default function OnboardingPage() {
                   <CardTitle className="text-lg">Abonnement et services</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                  <p><strong>Type d'abonnement :</strong> 29€/mois</p>
-                  <p><strong>Type de site :</strong> 99€</p>
+                  <p><strong>Type d&apos;abonnement :</strong> 29€/mois</p>
+                  <p><strong>Type de site web :</strong> Site vitrine professionnel</p>
                   <p className="text-sm text-gray-600">Ces tarifs par défaut peuvent être ajustés selon vos besoins.</p>
                 </CardContent>
               </Card>
@@ -939,7 +945,7 @@ export default function OnboardingPage() {
                 </CardHeader>
                 <CardContent className="space-y-2">
                   <p><strong>Images de chantiers :</strong> {formData.chantiersImages.length} image(s)</p>
-                  <p><strong>Photos d'équipe :</strong> {formData.employesImages.length} photo(s)</p>
+                  <p><strong>Photos d&apos;équipe :</strong> {formData.employesImages.length} photo(s)</p>
                   <p><strong>Logo :</strong> {formData.logoImage ? "Ajouté" : "Non ajouté"}</p>
                 </CardContent>
               </Card>

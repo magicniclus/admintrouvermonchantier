@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import sgMail from '@sendgrid/mail';
 
 sgMail.setApiKey(process.env.SENDGRID_API_KEY!);
@@ -33,18 +33,21 @@ export async function GET() {
       apiKeyPresent: !!process.env.SENDGRID_API_KEY
     });
     
-  } catch (error: any) {
-    console.error('❌ Erreur lors du test SendGrid:', error);
-    console.error('Error details:', {
-      message: error.message,
-      code: error.code,
-      response: error.response?.body
-    });
+  } catch (error: unknown) {
+    console.error('Erreur détaillée:', error);
+    const errorWithDetails = error as Error & { name?: string; response?: { body?: unknown } };
+    console.error('Type:', errorWithDetails?.name);
+    console.error('Message:', errorWithDetails?.message);
+    console.error('Response:', errorWithDetails?.response);
+    
+    if (errorWithDetails?.response) {
+      console.error('Response body:', errorWithDetails?.response?.body);
+    }
     
     return NextResponse.json({
       success: false,
-      error: error.message,
-      details: error.response?.body || error,
+      error: errorWithDetails?.message || 'Unknown error',
+      details: errorWithDetails?.response?.body || error,
       timestamp: new Date().toISOString()
     }, { status: 500 });
   }

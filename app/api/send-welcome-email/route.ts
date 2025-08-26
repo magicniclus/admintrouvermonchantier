@@ -247,11 +247,11 @@ export async function POST(request: NextRequest) {
       { message: 'Email envoyé avec succès' },
       { status: 200 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Erreur détaillée lors de l\'envoi de l\'email:', error);
-    console.error('Error response:', error.response?.body);
+    console.error('Error response:', (error as Error & { response?: { body?: unknown } })?.response?.body);
     return NextResponse.json(
-      { error: 'Erreur lors de l\'envoi de l\'email', details: error.message },
+      { error: 'Erreur lors de l\'envoi de l\'email', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }

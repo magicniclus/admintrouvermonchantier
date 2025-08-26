@@ -5,18 +5,22 @@ import { motion } from "framer-motion"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import {
   Search,
   Plus,
-  Filter,
   MoreHorizontal,
   Edit,
   Phone,
   Mail,
   MapPin,
   Calendar,
-  ChevronDown,
 } from "lucide-react"
 import { collection, getDocs, query, orderBy, Timestamp } from "firebase/firestore"
 import { db } from "@/lib/firebase"
@@ -32,7 +36,8 @@ interface Client {
   ville?: string
   StatutClient?: string
   DateConversionClient?: Timestamp
-  [key: string]: any
+  onboardingCompleted?: boolean
+  [key: string]: unknown // autorise les champs dynamiques
 }
 
 export function ClientsTab() {
@@ -43,56 +48,70 @@ export function ClientsTab() {
   const [editingClient, setEditingClient] = useState<Client | null>(null)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
 
-  // Fetch clients from Firebase
-  useEffect(() => {
-    const fetchClients = async () => {
-      try {
-        setLoading(true)
-        const clientsRef = collection(db, "clients")
-        const q = query(clientsRef, orderBy("DateConversionClient", "desc"))
-        const querySnapshot = await getDocs(q)
-        
-        const clientsData: Client[] = []
-        querySnapshot.forEach((doc) => {
-          clientsData.push({
-            id: doc.id,
-            ...doc.data()
-          } as Client)
-        })
-        
-        setClients(clientsData)
-      } catch (error) {
-        console.error("Erreur lors du chargement des clients:", error)
-      } finally {
-        setLoading(false)
-      }
-    }
+  const getField = (client: Client, key: string): string => {
+    const value = client[key] ?? 
+      client[key.toLowerCase()] ?? 
+      client[key.charAt(0).toUpperCase() + key.slice(1).toLowerCase()]
+    return typeof value === 'string' ? value : String(value || "")
+  }
 
+  const fetchClients = async () => {
+    try {
+      const clientsRef = collection(db, "clients")
+      const q = query(clientsRef, orderBy("DateConversionClient", "desc"))
+      const querySnapshot = await getDocs(q)
+
+      const clientsData: Client[] = []
+      querySnapshot.forEach((doc) => {
+        const data = doc.data()
+        clientsData.push({
+          id: doc.id,
+          nom: data.nom || '',
+          prenom: data.prenom || '',
+          email: data.email || '',
+          telephone: data.telephone || '',
+          ...data,
+        } as Client)
+      })
+
+      setClients(clientsData)
+    } catch (error) {
+      console.error("Erreur lors du chargement des clients:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
     fetchClients()
   }, [])
 
-  // Filter and sort clients
   const filteredAndSortedClients = clients
-    .filter(client => {
+    .filter((client) => {
       const searchLower = searchTerm.toLowerCase()
-      const fullName = `${client.Prenom || client.prenom || ''} ${client.Nom || client.nom || ''}`.toLowerCase()
+      const fullName = `${getField(client, "prenom")} ${getField(client, "nom")}`.toLowerCase()
       return (
         fullName.includes(searchLower) ||
-        (client.Email || client.email)?.toLowerCase().includes(searchLower) ||
-        (client.Entreprise || client.entreprise)?.toLowerCase().includes(searchLower) ||
-        (client.Ville || client.ville)?.toLowerCase().includes(searchLower)
+        getField(client, "email").toLowerCase().includes(searchLower) ||
+        getField(client, "entreprise").toLowerCase().includes(searchLower) ||
+        getField(client, "ville").toLowerCase().includes(searchLower)
       )
     })
     .sort((a, b) => {
+      const dateA = a.DateConversionClient?.seconds || 0
+      const dateB = b.DateConversionClient?.seconds || 0
+      const nameA = `${getField(a, "prenom")} ${getField(a, "nom")}`
+      const nameB = `${getField(b, "prenom")} ${getField(b, "nom")}`
+
       switch (sortBy) {
         case "date-desc":
-          return (b.DateConversionClient?.seconds || 0) - (a.DateConversionClient?.seconds || 0)
+          return dateB - dateA
         case "date-asc":
-          return (a.DateConversionClient?.seconds || 0) - (b.DateConversionClient?.seconds || 0)
+          return dateA - dateB
         case "name-asc":
-          return `${a.Prenom || a.prenom || ''} ${a.Nom || a.nom || ''}`.localeCompare(`${b.Prenom || b.prenom || ''} ${b.Nom || b.nom || ''}`)
+          return nameA.localeCompare(nameB)
         case "name-desc":
-          return `${b.Prenom || b.prenom || ''} ${b.Nom || b.nom || ''}`.localeCompare(`${a.Prenom || a.prenom || ''} ${a.Nom || a.nom || ''}`)
+          return nameB.localeCompare(nameA)
         default:
           return 0
       }
@@ -100,33 +119,10 @@ export function ClientsTab() {
 
   const handleEditClient = (client: Client) => {
     setEditingClient(client)
-    setIsEditModalOpen(true)
   }
 
-  const handleClientUpdated = () => {
-    // Refresh clients list
-    const fetchClients = async () => {
-      try {
-        const clientsRef = collection(db, "clients")
-        const q = query(clientsRef, orderBy("DateConversionClient", "desc"))
-        const querySnapshot = await getDocs(q)
-        
-        const clientsData: Client[] = []
-        querySnapshot.forEach((doc) => {
-          clientsData.push({
-            id: doc.id,
-            ...doc.data()
-          } as Client)
-        })
-        
-        setClients(clientsData)
-      } catch (error) {
-        console.error("Erreur lors du rechargement des clients:", error)
-      }
-    }
-
-    fetchClients()
-    setIsEditModalOpen(false)
+  const handleClientUpdated = async () => {
+    await fetchClients()
     setEditingClient(null)
   }
 
@@ -174,49 +170,57 @@ export function ClientsTab() {
       <div className="grid gap-4">
         {filteredAndSortedClients.length === 0 ? (
           <div className="text-center py-12 text-gray-500">
-            {searchTerm ? "Aucun client trouvé pour cette recherche" : "Aucun client pour le moment"}
+            {searchTerm
+              ? "Aucun client trouvé pour cette recherche"
+              : "Aucun client pour le moment"}
           </div>
         ) : (
           filteredAndSortedClients.map((client) => (
-            <motion.div key={client.id} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
+            <motion.div
+              key={client.id}
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+            >
               <Card className="hover:shadow-md transition-shadow">
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
                       <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full flex items-center justify-center text-white font-semibold">
-                        {`${(client.Prenom || client.prenom)?.[0] || ''}${(client.Nom || client.nom)?.[0] || ''}`}
+                        {`${getField(client, "prenom")[0] || ""}${getField(client, "nom")[0] || ""}`}
                       </div>
                       <div>
                         <h3 className="font-semibold text-lg">
-                          {`${client.Prenom || client.prenom || ''} ${client.Nom || client.nom || ''}`}
+                          {getField(client, "prenom")} {getField(client, "nom")}
                         </h3>
                         <div className="flex items-center gap-4 text-sm text-gray-600 mt-1">
-                          <span className="flex items-center gap-1">
-                            <Mail className="w-3 h-3" />
-                            {client.Email || client.email}
-                          </span>
-                          {(client.Telephone || client.telephone || client.Téléphone) && (
+                          {getField(client, "email") && (
                             <span className="flex items-center gap-1">
-                              <Phone className="w-3 h-3" />
-                              {client.Telephone || client.telephone || client.Téléphone}
+                              <Mail className="w-3 h-3" />
+                              {getField(client, "email")}
                             </span>
                           )}
-                          {(client.Ville || client.ville) && (
+                          {getField(client, "telephone") && (
+                            <span className="flex items-center gap-1">
+                              <Phone className="w-3 h-3" />
+                              {getField(client, "telephone")}
+                            </span>
+                          )}
+                          {getField(client, "ville") && (
                             <span className="flex items-center gap-1">
                               <MapPin className="w-3 h-3" />
-                              {client.Ville || client.ville}
+                              {getField(client, "ville")}
                             </span>
                           )}
                           {client.DateConversionClient && (
                             <span className="flex items-center gap-1">
                               <Calendar className="w-3 h-3" />
-                              {new Date(client.DateConversionClient.seconds * 1000).toLocaleDateString('fr-FR')}
+                              {new Date(client.DateConversionClient.seconds * 1000).toLocaleDateString("fr-FR")}
                             </span>
                           )}
                         </div>
-                        {(client.Entreprise || client.entreprise) && (
+                        {getField(client, "entreprise") && (
                           <div className="text-sm text-gray-500 mt-1">
-                            {client.Entreprise || client.entreprise}
+                            {getField(client, "entreprise")}
                           </div>
                         )}
                       </div>
@@ -224,7 +228,9 @@ export function ClientsTab() {
                     <div className="flex items-center gap-2">
                       <span
                         className={`px-3 py-1 rounded-full text-xs font-medium ${
-                          client.StatutClient === "Actif" ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"
+                          client.StatutClient === "Actif"
+                            ? "bg-green-100 text-green-800"
+                            : "bg-gray-100 text-gray-800"
                         }`}
                       >
                         {client.StatutClient || "Actif"}
@@ -248,11 +254,8 @@ export function ClientsTab() {
       {editingClient && (
         <EditClientModal
           client={editingClient}
-          isOpen={isEditModalOpen}
-          onClose={() => {
-            setIsEditModalOpen(false)
-            setEditingClient(null)
-          }}
+          isOpen={true}
+          onClose={() => setEditingClient(null)}
           onClientUpdated={handleClientUpdated}
         />
       )}

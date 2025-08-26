@@ -55,11 +55,11 @@ export function LoginForm() {
         await createUserWithEmailAndPassword(auth, email.trim(), password)
         console.log("👤 Compte créé")
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err)
 
       // Message plus clair si ce sont des permissions Firestore
-      const msg = String(err?.message || "")
+      const msg = String((err as Error)?.message || "")
       if (msg.includes("Missing or insufficient permissions")) {
         setError("Permissions Firestore insuffisantes : vérifie les règles et l'existence du doc admins/{uid}.")
       } else {

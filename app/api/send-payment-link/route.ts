@@ -6,7 +6,7 @@ sgMail.setApiKey(process.env.SENDGRID_API_KEY!)
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, firstName, lastName, offerType, clientId } = await request.json()
+    const { email, firstName, lastName, offerType } = await request.json()
 
     // Définir les liens selon l'offre
     const paymentLinks = {

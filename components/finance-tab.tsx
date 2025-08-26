@@ -24,9 +24,9 @@ import {
 
 interface Client {
   id: string
-  DateConversionClient?: any
-  dateOnboardingCompleted?: any
-  [key: string]: any
+  DateConversionClient?: { seconds: number }
+  dateOnboardingCompleted?: { seconds: number }
+  [key: string]: unknown
 }
 
 interface WeeklyData {
@@ -82,7 +82,7 @@ export function FinanceTab() {
     
     // Generate weeks of current month
     const weeks: WeeklyData[] = []
-    let weekStart = new Date(firstDayOfMonth)
+    const weekStart = new Date(firstDayOfMonth)
     
     // Adjust to start of week (Monday)
     const dayOfWeek = weekStart.getDay()
@@ -96,12 +96,12 @@ export function FinanceTab() {
       
       // Count new clients for this week
       const newClientsThisWeek = clientsData.filter(client => {
-        const clientDate = client.DateConversionClient?.toDate?.() || 
-                          client.dateOnboardingCompleted?.toDate?.()
+        const clientDate = client.DateConversionClient?.seconds ? new Date(client.DateConversionClient.seconds * 1000) : null
+        const clientDate2 = client.dateOnboardingCompleted?.seconds ? new Date(client.dateOnboardingCompleted.seconds * 1000) : null
         
-        if (!clientDate) return false
+        if (!clientDate && !clientDate2) return false
         
-        return clientDate >= weekStart && clientDate <= weekEnd
+        return (clientDate && clientDate >= weekStart && clientDate <= weekEnd) || (clientDate2 && clientDate2 >= weekStart && clientDate2 <= weekEnd)
       }).length
       
       weeks.push({
