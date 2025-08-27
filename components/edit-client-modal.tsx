@@ -29,6 +29,7 @@ import {
   Archive,
   CreditCard,
 } from "lucide-react"
+import Image from "next/image"
 import { doc, updateDoc, getDoc, Timestamp } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 
@@ -155,14 +156,6 @@ function normalizeClient(c: ClientRaw): Client {
   }
 }
 
-/** Prépare les données à écrire en base : uniquement le schéma propre camelCase */
-const _toFirestoreUpdate = (data: Partial<Client>) => {
-  const {
-    id, // on l’enlève
-    ...rest
-  } = data
-  return rest
-}
 
 export function EditClientModal({ client, isOpen, onClose, onClientUpdated }: EditClientModalProps) {
   const [formData, setFormData] = useState<Client | null>(null)
@@ -260,14 +253,15 @@ export function EditClientModal({ client, isOpen, onClose, onClientUpdated }: Ed
       const { id, ...updateData } = formData
       
       // Nettoyer les données pour éviter les undefined
-      const cleanedData: Record<string, any> = {}
+      const cleanedData: Partial<Client> = {}
       Object.entries(updateData).forEach(([key, value]) => {
         if (value !== undefined && value !== null) {
-          cleanedData[key] = value
+          cleanedData[key as keyof Client] = value
         }
       })
       
-      await updateDoc(doc(db, "clients", id), cleanedData)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await updateDoc(doc(db, "clients", id), cleanedData as any)
       onClientUpdated()
     } catch (error) {
       console.error("Erreur lors de la mise à jour:", error)
@@ -907,9 +901,11 @@ export function EditClientModal({ client, isOpen, onClose, onClientUpdated }: Ed
                                         </Button>
                                       </div>
                                       <div className="mt-1">
-                                        <img
+                                        <Image
                                           src={onboardingData.logoImage}
                                           alt="Logo"
+                                          width={64}
+                                          height={64}
                                           className="h-16 w-auto object-contain border rounded"
                                         />
                                       </div>
@@ -937,9 +933,11 @@ export function EditClientModal({ client, isOpen, onClose, onClientUpdated }: Ed
                                       <div className="mt-1 flex flex-wrap gap-2">
                                         {onboardingData.chantiersImages.slice(0, 4).map((image, index) => (
                                           <div key={index} className="relative group">
-                                            <img
+                                            <Image
                                               src={image}
                                               alt={`Chantier ${index + 1}`}
+                                              width={64}
+                                              height={64}
                                               className="h-16 w-16 object-cover border rounded"
                                             />
                                             <Button
@@ -985,9 +983,11 @@ export function EditClientModal({ client, isOpen, onClose, onClientUpdated }: Ed
                                       <div className="mt-1 flex flex-wrap gap-2">
                                         {onboardingData.employesImages.slice(0, 4).map((image, index) => (
                                           <div key={index} className="relative group">
-                                            <img
+                                            <Image
                                               src={image}
                                               alt={`Employé ${index + 1}`}
+                                              width={64}
+                                              height={64}
                                               className="h-16 w-16 object-cover border rounded"
                                             />
                                             <Button

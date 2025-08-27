@@ -69,7 +69,7 @@ export function EditProspectModal({ isOpen, onClose, prospect, onProspectUpdated
       setIsSaving(true)
       const prospectRef = doc(db, "prospects", prospect.id)
 
-      const { id: _id, ...formDataWithoutId } = formData
+      const { id, ...formDataWithoutId } = formData
 
       const updateData = {
         Nom: formData.Nom || "",

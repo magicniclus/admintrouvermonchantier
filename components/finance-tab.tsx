@@ -35,7 +35,7 @@ interface WeeklyData {
 }
 
 export function FinanceTab() {
-  const [clients, setClients] = useState<Client[]>([])
+  const [, setClients] = useState<Client[]>([])
   const [loading, setLoading] = useState(true)
   const [weeklyData, setWeeklyData] = useState<WeeklyData[]>([])
   const [totalClients, setTotalClients] = useState(0)

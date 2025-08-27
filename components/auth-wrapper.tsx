@@ -10,7 +10,7 @@ import { LoginForm } from "@/components/login-form"
 
 export function AuthWrapper() {
   const [loading, setLoading] = useState(true)
-  const [user, setUser] = useState<User | null>(null)
+  const [, setUser] = useState<User | null>(null)
   const router = useRouter()
 
   // Vérifie le rôle en lisant admins/{uid}
