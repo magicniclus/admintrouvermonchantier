@@ -114,18 +114,52 @@ export function EditProspectModal({ isOpen, onClose, prospect, onProspectUpdated
     try {
       setIsConverting(true)
       
-      // Créer le client avec toutes les données du prospect + date de conversion
+      // Mapper les champs du prospect vers les champs client attendus
       const clientData = {
-        ...formData,
+        // Mapping des champs principaux
+        nom: formData.Nom || "",
+        prenom: formData.Prenom || "",
+        email: formData.Email || "",
+        telephone: formData.Téléphone || "",
+        entreprise: formData.NomEntreprise || formData.Entreprise || "",
+        ville: "", // Pas dans les prospects, sera vide
+        
+        // Champs étendus avec noms normalisés
+        nomEntreprise: formData.NomEntreprise || formData.Entreprise || "",
+        metier: formData.Metier || "",
+        secteurActivite: formData.Secteur || "",
+        rayonIntervention: formData.RayonIntervention || "",
+        raisonSociale: formData.RaisonSociale || "",
+        anneeCreation: formData.AnneeCreation || "",
+        nombreCollaborateurs: formData.NombreCollaborateurs || "",
+        prestations: formData.Prestation || "",
+        certifications: formData.Certification || "",
+        garanties: formData.Garanties || "",
+        partenaires: formData.Partenaire || "",
+        siteWebExistant: !!formData.SiteWebExistant,
+        siteWebURL: formData.SiteWebURL || "",
+        logo: !!formData.Logo,
+        sitePret: !!formData.SitePret,
+        commentaire: formData.Commentaire || "",
+        etapeProspect: formData.Etape || "",
+        rgpd: !!formData.RGPD,
+        
+        // Métadonnées de conversion
         DateConversionClient: new Date(),
-        StatutClient: "Actif"
+        StatutClient: "Actif",
+        status: "prospect_converti",
+        dateConversionProspect: new Date(),
+        
+        // Données prospect originales (pour référence)
+        dataProspectOriginal: {
+          ...formData
+        }
       }
       
-      // Supprimer l'ID pour éviter les conflits lors de l'ajout
-      const { id, ...clientDataWithoutId } = clientData
+      // Les données sont prêtes pour l'ajout (pas d'ID à supprimer car clientData n'en a pas)
       
       // Ajouter dans la collection clients
-      await addDoc(collection(db, "clients"), clientDataWithoutId)
+      await addDoc(collection(db, "clients"), clientData)
       
       // Supprimer de la collection prospects
       await deleteDoc(doc(db, "prospects", prospect.id))

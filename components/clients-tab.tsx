@@ -28,15 +28,24 @@ import { EditClientModal } from "@/components/edit-client-modal"
 
 interface Client {
   id: string
-  nom: string
-  prenom: string
-  email: string
-  telephone: string
+  nom?: string
+  prenom?: string
+  email?: string
+  telephone?: string
   entreprise?: string
   ville?: string
   StatutClient?: string
   DateConversionClient?: Timestamp
   onboardingCompleted?: boolean
+  // Variantes de casse pour les champs
+  Nom?: string
+  Prenom?: string
+  Email?: string
+  Téléphone?: string
+  Entreprise?: string
+  NomEntreprise?: string
+  nomEntreprise?: string
+  Ville?: string
   [key: string]: unknown // autorise les champs dynamiques
 }
 
@@ -48,10 +57,23 @@ export function ClientsTab() {
   const [editingClient, setEditingClient] = useState<Client | null>(null)
 
   const getField = (client: Client, key: string): string => {
-    const value = client[key] ?? 
-      client[key.toLowerCase()] ?? 
-      client[key.charAt(0).toUpperCase() + key.slice(1).toLowerCase()]
-    return typeof value === 'string' ? value : String(value || "")
+    // Essayer plusieurs variantes du nom de champ
+    const variations = [
+      key,                                                    // nom
+      key.toLowerCase(),                                      // nom
+      key.charAt(0).toUpperCase() + key.slice(1).toLowerCase(), // Nom
+      key.charAt(0).toUpperCase() + key.slice(1),            // Nom
+      key.toUpperCase()                                       // NOM
+    ]
+    
+    for (const variant of variations) {
+      const value = client[variant as keyof Client]
+      if (value !== undefined && value !== null && value !== "") {
+        return typeof value === 'string' ? value : String(value)
+      }
+    }
+    
+    return ""
   }
 
   const fetchClients = async () => {
@@ -63,12 +85,21 @@ export function ClientsTab() {
       const clientsData: Client[] = []
       querySnapshot.forEach((doc) => {
         const data = doc.data()
+        console.log("Client data from Firebase:", data) // Debug log
+        console.log("All client keys:", Object.keys(data)) // Debug log
+        
+        // Log specific fields we're looking for
+        console.log("nom fields:", {
+          nom: data.nom,
+          Nom: data.Nom,
+          prenom: data.prenom,
+          Prenom: data.Prenom,
+          email: data.email,
+          Email: data.Email
+        })
+        
         clientsData.push({
           id: doc.id,
-          nom: data.nom || '',
-          prenom: data.prenom || '',
-          email: data.email || '',
-          telephone: data.telephone || '',
           ...data,
         } as Client)
       })
@@ -185,29 +216,29 @@ export function ClientsTab() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
                       <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full flex items-center justify-center text-white font-semibold">
-                        {`${getField(client, "prenom")[0] || ""}${getField(client, "nom")[0] || ""}`}
+                        {`${(client.prenom || client.Prenom || "")[0] || ""}${(client.nom || client.Nom || "")[0] || ""}`}
                       </div>
                       <div>
                         <h3 className="font-semibold text-lg">
-                          {getField(client, "prenom")} {getField(client, "nom")}
+                          {client.prenom || client.Prenom || ""} {client.nom || client.Nom || ""}
                         </h3>
                         <div className="flex items-center gap-4 text-sm text-gray-600 mt-1">
-                          {getField(client, "email") && (
+                          {(client.email || client.Email) && (
                             <span className="flex items-center gap-1">
                               <Mail className="w-3 h-3" />
-                              {getField(client, "email")}
+                              {client.email || client.Email}
                             </span>
                           )}
-                          {getField(client, "telephone") && (
+                          {(client.telephone || client.Téléphone) && (
                             <span className="flex items-center gap-1">
                               <Phone className="w-3 h-3" />
-                              {getField(client, "telephone")}
+                              {client.telephone || client.Téléphone}
                             </span>
                           )}
-                          {getField(client, "ville") && (
+                          {(client.ville || client.Ville) && (
                             <span className="flex items-center gap-1">
                               <MapPin className="w-3 h-3" />
-                              {getField(client, "ville")}
+                              {client.ville || client.Ville}
                             </span>
                           )}
                           {client.DateConversionClient && (
@@ -217,9 +248,9 @@ export function ClientsTab() {
                             </span>
                           )}
                         </div>
-                        {getField(client, "entreprise") && (
+                        {(client.entreprise || client.Entreprise || client.nomEntreprise || client.NomEntreprise) && (
                           <div className="text-sm text-gray-500 mt-1">
-                            {getField(client, "entreprise")}
+                            {client.entreprise || client.Entreprise || client.nomEntreprise || client.NomEntreprise}
                           </div>
                         )}
                       </div>

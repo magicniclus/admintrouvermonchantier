@@ -175,6 +175,7 @@ export function EditClientModal({ client, isOpen, onClose, onClientUpdated }: Ed
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [selectedOffer, setSelectedOffer] = useState<"90j-offert" | "classique" | null>(null)
   const [sendingPaymentLink, setSendingPaymentLink] = useState(false)
+  const [sendingOnboardingLink, setSendingOnboardingLink] = useState(false)
 
   useEffect(() => {
     if (!client) return
@@ -257,8 +258,16 @@ export function EditClientModal({ client, isOpen, onClose, onClientUpdated }: Ed
     try {
       setIsUpdating(true)
       const { id, ...updateData } = formData
-      // Type assertion to satisfy Firebase's updateDoc requirements
-      await updateDoc(doc(db, "clients", id), updateData)
+      
+      // Nettoyer les données pour éviter les undefined
+      const cleanedData: Record<string, any> = {}
+      Object.entries(updateData).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          cleanedData[key] = value
+        }
+      })
+      
+      await updateDoc(doc(db, "clients", id), cleanedData)
       onClientUpdated()
     } catch (error) {
       console.error("Erreur lors de la mise à jour:", error)
@@ -295,6 +304,34 @@ export function EditClientModal({ client, isOpen, onClose, onClientUpdated }: Ed
       alert("Erreur lors de l'envoi de l'email")
     } finally {
       setSendingPaymentLink(false)
+    }
+  }
+
+  const handleSendOnboardingLink = async () => {
+    if (!formData) return
+    try {
+      setSendingOnboardingLink(true)
+      const response = await fetch("/api/send-onboarding-link", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: formData.email,
+          firstName: formData.prenom,
+          lastName: formData.nom,
+          clientId: formData.id,
+        }),
+      })
+      if (response.ok) {
+        alert("Email d'onboarding envoyé avec succès !")
+      } else {
+        const error = await response.json()
+        alert("Erreur lors de l'envoi: " + error.error)
+      }
+    } catch (error) {
+      console.error("Erreur:", error)
+      alert("Erreur lors de l'envoi de l'email")
+    } finally {
+      setSendingOnboardingLink(false)
     }
   }
 
@@ -636,6 +673,18 @@ export function EditClientModal({ client, isOpen, onClose, onClientUpdated }: Ed
                         Ouvrir
                       </Button>
                     </div>
+                    <Button 
+                      onClick={handleSendOnboardingLink} 
+                      disabled={sendingOnboardingLink}
+                      className="w-full bg-green-600 hover:bg-green-700"
+                    >
+                      {sendingOnboardingLink ? (
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      ) : (
+                        <Mail className="w-4 h-4 mr-2" />
+                      )}
+                      {sendingOnboardingLink ? "Envoi en cours..." : "Envoyer par email"}
+                    </Button>
                   </div>
                 </div>
 
