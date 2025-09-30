@@ -1,11 +1,27 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { collection, getDocs, Timestamp } from "firebase/firestore"
+import { collection, getDocs, deleteDoc, doc, Timestamp } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { EditProspectModal } from "@/components/edit-prospect-modal"
 import { motion } from "framer-motion"
 import {
@@ -19,6 +35,7 @@ import {
   Calendar,
   ChevronDown,
   Briefcase,
+  Trash2,
 } from "lucide-react"
 
 interface Prospect {
@@ -43,10 +60,21 @@ export function ProspectsTab() {
   const [prospectsError, setProspectsError] = useState<string | null>(null)
   const [editingProspect, setEditingProspect] = useState<Prospect | null>(null)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [isCreatingProspect, setIsCreatingProspect] = useState(false)
+  const [prospectToDelete, setProspectToDelete] = useState<Prospect | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   // Edit prospect
   const handleEditProspect = (prospect: Prospect) => {
     setEditingProspect(prospect)
+    setIsCreatingProspect(false)
+    setIsEditModalOpen(true)
+  }
+
+  // Create new prospect
+  const handleCreateProspect = () => {
+    setEditingProspect(null)
+    setIsCreatingProspect(true)
     setIsEditModalOpen(true)
   }
 
@@ -54,9 +82,37 @@ export function ProspectsTab() {
     setProspects(prev => prev.map(p => (p.id === updatedProspect.id ? updatedProspect : p)))
   }
 
+  const handleProspectAdded = (newProspect: Prospect) => {
+    setProspects(prev => [newProspect, ...prev])
+  }
+
+  const handleDeleteProspect = async (prospect: Prospect) => {
+    setProspectToDelete(prospect)
+  }
+
+  const confirmDeleteProspect = async () => {
+    if (!prospectToDelete) return
+
+    try {
+      setIsDeleting(true)
+      await deleteDoc(doc(db, "prospects", prospectToDelete.id))
+      setProspects(prev => prev.filter(p => p.id !== prospectToDelete.id))
+      setProspectToDelete(null)
+    } catch (error) {
+      console.error("Erreur lors de la suppression du prospect:", error)
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
+  const cancelDeleteProspect = () => {
+    setProspectToDelete(null)
+  }
+
   const handleCloseModal = () => {
     setIsEditModalOpen(false)
     setEditingProspect(null)
+    setIsCreatingProspect(false)
   }
 
   const handleProspectConverted = () => {
@@ -175,7 +231,10 @@ export function ProspectsTab() {
               <ChevronDown className="absolute right-2 top-2.5 h-4 w-4 text-gray-400 pointer-events-none" />
             </div>
 
-            <Button className="bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 h-10 px-6">
+            <Button 
+              onClick={handleCreateProspect}
+              className="bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 h-10 px-6"
+            >
               <Plus className="w-4 h-4 mr-2" />
               Nouveau prospect
             </Button>
@@ -256,9 +315,22 @@ export function ProspectsTab() {
                         <Button variant="ghost" size="sm" onClick={() => handleEditProspect(prospect)}>
                           <Edit className="w-4 h-4" />
                         </Button>
-                        <Button variant="ghost" size="sm">
-                          <MoreHorizontal className="w-4 h-4" />
-                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm">
+                              <MoreHorizontal className="w-4 h-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem 
+                              onClick={() => handleDeleteProspect(prospect)}
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            >
+                              <Trash2 className="w-4 h-4 mr-2" />
+                              Supprimer
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </div>
                   </CardContent>
@@ -269,14 +341,42 @@ export function ProspectsTab() {
         </div>
       </div>
 
-      {/* Edit Prospect Modal */}
+      {/* Edit/Create Prospect Modal */}
       <EditProspectModal
         isOpen={isEditModalOpen}
         onClose={handleCloseModal}
         prospect={editingProspect}
         onProspectUpdated={handleProspectUpdated}
         onProspectConverted={handleProspectConverted}
+        onProspectAdded={handleProspectAdded}
+        isCreating={isCreatingProspect}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!prospectToDelete} onOpenChange={() => setProspectToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmer la suppression</AlertDialogTitle>
+            <AlertDialogDescription>
+              Êtes-vous sûr de vouloir supprimer le prospect <strong>{prospectToDelete?.Prenom} {prospectToDelete?.Nom}</strong> ?
+              <br />
+              Cette action est irréversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={cancelDeleteProspect}>
+              Annuler
+            </AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmDeleteProspect}
+              disabled={isDeleting}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {isDeleting ? "Suppression..." : "Supprimer"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   )
 }

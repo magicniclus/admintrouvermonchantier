@@ -47,38 +47,67 @@ interface EditProspectModalProps {
   prospect: Prospect | null
   onProspectUpdated: (updatedProspect: Prospect) => void
   onProspectConverted?: () => void
+  onProspectAdded?: (newProspect: Prospect) => void
+  isCreating?: boolean
 }
 
-export function EditProspectModal({ isOpen, onClose, prospect, onProspectUpdated, onProspectConverted }: EditProspectModalProps) {
+export function EditProspectModal({ isOpen, onClose, prospect, onProspectUpdated, onProspectConverted, onProspectAdded, isCreating = false }: EditProspectModalProps) {
   const [formData, setFormData] = useState<Prospect | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [isConverting, setIsConverting] = useState(false)
   const [showConfirmModal, setShowConfirmModal] = useState(false)
 
-  // Initialize form data when prospect changes
+  // Initialize form data when prospect changes or when creating
   useEffect(() => {
-    if (prospect) {
+    if (isCreating) {
+      // Initialize with empty data for new prospect
+      setFormData({
+        id: "",
+        Nom: "",
+        Prenom: "",
+        Email: "",
+        Téléphone: "",
+        Entreprise: "",
+        Metier: "",
+        Etape: "A contacter",
+        Date: new Date(),
+        RGPD: false,
+        Commentaire: "",
+        AnneeCreation: "",
+        NombreCollaborateurs: "",
+        Prestation: "",
+        Secteur: "",
+        RayonIntervention: "",
+        NomEntreprise: "",
+        RaisonSociale: "",
+        Certification: "",
+        Garanties: "",
+        Partenaire: "",
+        SiteWebExistant: false,
+        SiteWebURL: "",
+        Logo: false,
+        SitePret: false,
+      })
+    } else if (prospect) {
       setFormData({ ...prospect })
     }
-  }, [prospect])
+  }, [prospect, isCreating])
 
   const handleSave = async () => {
-    if (!formData || !prospect) return
+    if (!formData) return
 
     try {
       setIsSaving(true)
-      const prospectRef = doc(db, "prospects", prospect.id)
-
-      const { id, ...formDataWithoutId } = formData
-
-      const updateData = {
+      
+      const saveData = {
         Nom: formData.Nom || "",
         Prenom: formData.Prenom || "",
         Email: formData.Email || "",
         Téléphone: formData.Téléphone || "",
         Entreprise: formData.Entreprise || "",
         Metier: formData.Metier || "",
-        Etape: formData.Etape || "",
+        Etape: formData.Etape || "A contacter",
+        Date: isCreating ? new Date() : formData.Date,
         RGPD: !!formData.RGPD,
         Commentaire: formData.Commentaire || "",
         // Nouveaux champs entreprise
@@ -98,11 +127,23 @@ export function EditProspectModal({ isOpen, onClose, prospect, onProspectUpdated
         SitePret: !!formData.SitePret,
       }
 
-      await updateDoc(prospectRef, updateData)
-      onProspectUpdated(formData)
+      if (isCreating) {
+        // Créer un nouveau prospect
+        const docRef = await addDoc(collection(db, "prospects"), saveData)
+        const newProspect = { ...saveData, id: docRef.id } as Prospect
+        if (onProspectAdded) {
+          onProspectAdded(newProspect)
+        }
+      } else if (prospect) {
+        // Mettre à jour un prospect existant
+        const prospectRef = doc(db, "prospects", prospect.id)
+        await updateDoc(prospectRef, saveData)
+        onProspectUpdated({ ...formData, ...saveData })
+      }
+      
       onClose()
     } catch (error) {
-      console.error("Erreur lors de la mise à jour:", error)
+      console.error("Erreur lors de la sauvegarde:", error)
     } finally {
       setIsSaving(false)
     }
@@ -188,7 +229,7 @@ export function EditProspectModal({ isOpen, onClose, prospect, onProspectUpdated
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Modifier le prospect</DialogTitle>
+          <DialogTitle>{isCreating ? "Ajouter un nouveau prospect" : "Modifier le prospect"}</DialogTitle>
         </DialogHeader>
 
         {formData && (
@@ -489,25 +530,28 @@ export function EditProspectModal({ isOpen, onClose, prospect, onProspectUpdated
         )}
 
         <DialogFooter className="flex justify-between">
-          <Button 
-            onClick={() => setShowConfirmModal(true)}
-            className="bg-green-600 hover:bg-green-700"
-          >
-            Passer en client
-          </Button>
+          {!isCreating && (
+            <Button 
+              onClick={() => setShowConfirmModal(true)}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              Passer en client
+            </Button>
+          )}
           
-          <div className="flex gap-2">
+          <div className="flex gap-2 ml-auto">
             <Button variant="outline" onClick={handleClose}>
               Annuler
             </Button>
             <Button onClick={handleSave} disabled={isSaving}>
-              {isSaving ? "Sauvegarde..." : "Sauvegarder"}
+              {isSaving ? "Sauvegarde..." : (isCreating ? "Ajouter" : "Sauvegarder")}
             </Button>
           </div>
         </DialogFooter>
       </DialogContent>
 
-      {/* Modal de confirmation */}
+      {/* Modal de confirmation - seulement en mode édition */}
+      {!isCreating && (
       <Dialog open={showConfirmModal} onOpenChange={setShowConfirmModal}>
         <DialogContent className="max-w-md">
           <DialogHeader>
@@ -537,6 +581,7 @@ export function EditProspectModal({ isOpen, onClose, prospect, onProspectUpdated
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      )}
     </Dialog>
   )
 }
