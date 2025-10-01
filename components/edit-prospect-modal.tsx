@@ -288,6 +288,7 @@ export function EditProspectModal({ isOpen, onClose, prospect, onProspectUpdated
                     <SelectItem value="R2">R2</SelectItem>
                     <SelectItem value="Injoignable">Injoignable</SelectItem>
                     <SelectItem value="faux numero">Faux numéro</SelectItem>
+                    <SelectItem value="Pas intéressé">Pas intéressé</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
