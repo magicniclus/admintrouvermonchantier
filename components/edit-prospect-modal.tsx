@@ -225,6 +225,64 @@ export function EditProspectModal({ isOpen, onClose, prospect, onProspectUpdated
     onClose()
   }
 
+  const handleDownloadJSON = () => {
+    if (!formData) return
+
+    // Créer un objet avec toutes les données du prospect
+    const prospectData = {
+      id: formData.id,
+      informationsPersonnelles: {
+        nom: formData.Nom,
+        prenom: formData.Prenom,
+        email: formData.Email,
+        telephone: formData.Téléphone,
+        etape: formData.Etape,
+        date: formData.Date,
+        rgpd: formData.RGPD,
+        commentaire: formData.Commentaire
+      },
+      informationsEntreprise: {
+        nomEntreprise: formData.NomEntreprise,
+        entreprise: formData.Entreprise,
+        metier: formData.Metier,
+        secteurActivite: formData.Secteur,
+        raisonSociale: formData.RaisonSociale,
+        anneeCreation: formData.AnneeCreation,
+        nombreCollaborateurs: formData.NombreCollaborateurs,
+        prestation: formData.Prestation,
+        rayonIntervention: formData.RayonIntervention,
+        certifications: formData.Certification,
+        garanties: formData.Garanties,
+        partenaires: formData.Partenaire
+      },
+      siteWebEtCommunication: {
+        siteWebExistant: formData.SiteWebExistant,
+        siteWebURL: formData.SiteWebURL,
+        logo: formData.Logo,
+        sitePret: formData.SitePret
+      },
+      metadonnees: {
+        dateExport: new Date().toISOString(),
+        exportePar: "Admin Trouver Mon Chantier"
+      }
+    }
+
+    // Créer le fichier JSON et le télécharger
+    const dataStr = JSON.stringify(prospectData, null, 2)
+    const dataBlob = new Blob([dataStr], { type: 'application/json' })
+    const url = URL.createObjectURL(dataBlob)
+    
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `prospect_${formData.Prenom}_${formData.Nom}_${new Date().toISOString().split('T')[0]}.json`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    
+    // Nettoyer l'URL
+    URL.revokeObjectURL(url)
+  }
+
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -531,14 +589,25 @@ export function EditProspectModal({ isOpen, onClose, prospect, onProspectUpdated
         )}
 
         <DialogFooter className="flex justify-between">
-          {!isCreating && (
-            <Button 
-              onClick={() => setShowConfirmModal(true)}
-              className="bg-green-600 hover:bg-green-700"
-            >
-              Passer en client
-            </Button>
-          )}
+          <div className="flex gap-2">
+            {!isCreating && (
+              <>
+                <Button 
+                  onClick={() => setShowConfirmModal(true)}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  Passer en client
+                </Button>
+                <Button 
+                  onClick={handleDownloadJSON}
+                  variant="outline"
+                  className="border-blue-500 text-blue-600 hover:bg-blue-50"
+                >
+                  📥 Télécharger JSON
+                </Button>
+              </>
+            )}
+          </div>
           
           <div className="flex gap-2 ml-auto">
             <Button variant="outline" onClick={handleClose}>
