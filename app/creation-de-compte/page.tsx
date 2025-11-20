@@ -17,8 +17,9 @@ import {
   AlertCircle,
   Briefcase,
 } from "lucide-react"
-import { doc, getDoc } from "firebase/firestore"
+import { doc, getDoc, updateDoc } from "firebase/firestore"
 import { db } from "@/lib/firebase"
+import { createUserWithEmailAndPassword, getAuth } from "firebase/auth"
 
 interface ClientData {
   // Informations de base
@@ -115,6 +116,11 @@ function CreationDeCompteContent() {
   }, [uid])
 
   const handleCreateAccount = async () => {
+    if (!uid) {
+      setError("UID client manquant")
+      return
+    }
+
     if (!email || !password || !confirmPassword) {
       setError("Tous les champs sont requis")
       return
@@ -134,19 +140,43 @@ function CreationDeCompteContent() {
     setError(null)
 
     try {
-      // Ici vous pouvez ajouter la logique de création de compte
-      // Par exemple, créer un compte Firebase Auth
-      console.log("Création de compte pour:", email)
+      console.log("Création de compte Firebase Auth pour:", email)
       
-      // Simulation d'une création de compte
-      await new Promise(resolve => setTimeout(resolve, 2000))
+      // Créer le compte Firebase Auth
+      const auth = getAuth()
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password)
+      const user = userCredential.user
       
-      // Rediriger vers le dashboard ou une page de succès
-      window.location.href = "/dashboard"
+      console.log("Compte Firebase Auth créé avec UID:", user.uid)
       
-    } catch (error) {
+      // Mettre à jour le document client avec l'UID Firebase Auth
+      await updateDoc(doc(db, "clients", uid), {
+        uidclient: user.uid,
+        status: "compte_cree",
+        dateCreationCompte: new Date(),
+        emailAuth: email
+      })
+      
+      console.log("Document client mis à jour avec succès")
+      
+      // Rediriger vers le dashboard après un court délai
+      setTimeout(() => {
+        window.location.href = "/dashboard"
+      }, 1500)
+      
+    } catch (error: any) {
       console.error("Erreur lors de la création du compte:", error)
-      setError("Erreur lors de la création du compte")
+      
+      // Gestion des erreurs Firebase Auth spécifiques
+      if (error.code === 'auth/email-already-in-use') {
+        setError("Cette adresse email est déjà utilisée")
+      } else if (error.code === 'auth/weak-password') {
+        setError("Le mot de passe est trop faible")
+      } else if (error.code === 'auth/invalid-email') {
+        setError("Adresse email invalide")
+      } else {
+        setError("Erreur lors de la création du compte: " + (error.message || "Erreur inconnue"))
+      }
     } finally {
       setIsCreatingAccount(false)
     }
@@ -364,9 +394,17 @@ function CreationDeCompteContent() {
                   )}
                 </Button>
 
-                <div className="text-xs text-gray-500 text-center">
-                  Votre compte a été créé avec succès ! Vous allez être redirigé vers votre espace d&apos;administration.
-                </div>
+                {isCreatingAccount && (
+                  <div className="text-xs text-green-600 text-center font-medium">
+                    ✅ Compte créé avec succès ! Redirection en cours...
+                  </div>
+                )}
+                
+                {!isCreatingAccount && (
+                  <div className="text-xs text-gray-500 text-center">
+                    Après création, vous serez redirigé vers votre espace d&apos;administration.
+                  </div>
+                )}
               </CardContent>
             </Card>
           </motion.div>
