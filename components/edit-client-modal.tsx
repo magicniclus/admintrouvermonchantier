@@ -169,6 +169,9 @@ export function EditClientModal({ client, isOpen, onClose, onClientUpdated }: Ed
   const [selectedOffer, setSelectedOffer] = useState<"90j-offert" | "classique" | null>(null)
   const [sendingPaymentLink, setSendingPaymentLink] = useState(false)
   const [sendingOnboardingLink, setSendingOnboardingLink] = useState(false)
+  const [sendingAccountCreationLink, setSendingAccountCreationLink] = useState(false)
+  const [accountCreationLink, setAccountCreationLink] = useState("")
+  const [accountLinkCopied, setAccountLinkCopied] = useState(false)
 
   useEffect(() => {
     if (!client) return
@@ -177,6 +180,7 @@ export function EditClientModal({ client, isOpen, onClose, onClientUpdated }: Ed
 
     const baseUrl = typeof window !== "undefined" ? window.location.origin : ""
     setOnboardingLink(`${baseUrl}/onboarding?clientId=${client.id}`)
+    setAccountCreationLink(`${baseUrl}/creation-de-compte?uid=${client.id}`)
   }, [client])
 
   const copyOnboardingLink = async () => {
@@ -327,6 +331,48 @@ export function EditClientModal({ client, isOpen, onClose, onClientUpdated }: Ed
     } finally {
       setSendingOnboardingLink(false)
     }
+  }
+
+  const handleSendAccountCreationLink = async () => {
+    if (!formData) return
+    try {
+      setSendingAccountCreationLink(true)
+      const response = await fetch("/api/send-account-creation-link", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: formData.email,
+          firstName: formData.prenom,
+          lastName: formData.nom,
+          clientId: formData.id,
+        }),
+      })
+      if (response.ok) {
+        alert("Email de création de compte envoyé avec succès !")
+      } else {
+        const error = await response.json()
+        alert("Erreur lors de l'envoi: " + error.error)
+      }
+    } catch (error) {
+      console.error("Erreur:", error)
+      alert("Erreur lors de l'envoi de l'email")
+    } finally {
+      setSendingAccountCreationLink(false)
+    }
+  }
+
+  const copyAccountCreationLink = async () => {
+    try {
+      await navigator.clipboard.writeText(accountCreationLink)
+      setAccountLinkCopied(true)
+      setTimeout(() => setAccountLinkCopied(false), 2000)
+    } catch (error) {
+      console.error("Erreur lors de la copie:", error)
+    }
+  }
+
+  const openAccountCreationLink = () => {
+    window.open(accountCreationLink, "_blank")
   }
 
   const getDateInputValue = (timestamp?: Timestamp): string => {
@@ -678,6 +724,44 @@ export function EditClientModal({ client, isOpen, onClose, onClientUpdated }: Ed
                         <Mail className="w-4 h-4 mr-2" />
                       )}
                       {sendingOnboardingLink ? "Envoi en cours..." : "Envoyer par email"}
+                    </Button>
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Lien de création de compte */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <User className="w-4 h-4" />
+                    <h3 className="font-semibold">Lien de création de compte</h3>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="text-sm text-gray-600">
+                      Envoyez ce lien au client pour qu&apos;il puisse créer son compte d&apos;accès (email + mot de passe) :
+                    </div>
+                    <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg border">
+                      <Input value={accountCreationLink} readOnly className="flex-1 bg-transparent border-none focus:ring-0 text-sm" />
+                      <Button variant="outline" size="sm" onClick={copyAccountCreationLink} className="shrink-0">
+                        <Copy className="w-4 h-4 mr-1" />
+                        {accountLinkCopied ? "Copié !" : "Copier"}
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={openAccountCreationLink} className="shrink-0">
+                        <Globe className="w-4 h-4 mr-1" />
+                        Ouvrir
+                      </Button>
+                    </div>
+                    <Button 
+                      onClick={handleSendAccountCreationLink} 
+                      disabled={sendingAccountCreationLink}
+                      className="w-full bg-orange-600 hover:bg-orange-700"
+                    >
+                      {sendingAccountCreationLink ? (
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      ) : (
+                        <Mail className="w-4 h-4 mr-2" />
+                      )}
+                      {sendingAccountCreationLink ? "Envoi en cours..." : "Envoyer lien de création de compte"}
                     </Button>
                   </div>
                 </div>
