@@ -83,17 +83,22 @@ export function SettingsTab() {
       setNewPassword("")
       setConfirmPassword("")
       clearMessage()
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Erreur lors de la mise à jour du mot de passe:", error)
       
-      if (error.code === 'auth/wrong-password') {
-        setMessage({ type: 'error', text: 'Mot de passe actuel incorrect' })
-      } else if (error.code === 'auth/weak-password') {
-        setMessage({ type: 'error', text: 'Le nouveau mot de passe est trop faible' })
-      } else if (error.code === 'auth/requires-recent-login') {
-        setMessage({ type: 'error', text: 'Veuillez vous reconnecter avant de changer votre mot de passe' })
+      if (error instanceof Error && 'code' in error) {
+        const firebaseError = error as { code: string; message: string }
+        if (firebaseError.code === 'auth/wrong-password') {
+          setMessage({ type: 'error', text: 'Mot de passe actuel incorrect' })
+        } else if (firebaseError.code === 'auth/weak-password') {
+          setMessage({ type: 'error', text: 'Le nouveau mot de passe est trop faible' })
+        } else if (firebaseError.code === 'auth/requires-recent-login') {
+          setMessage({ type: 'error', text: 'Veuillez vous reconnecter avant de changer votre mot de passe' })
+        } else {
+          setMessage({ type: 'error', text: 'Erreur lors de la mise à jour: ' + firebaseError.message })
+        }
       } else {
-        setMessage({ type: 'error', text: 'Erreur lors de la mise à jour: ' + (error.message || 'Erreur inconnue') })
+        setMessage({ type: 'error', text: 'Erreur lors de la mise à jour: ' + (error instanceof Error ? error.message : 'Erreur inconnue') })
       }
       clearMessage()
     } finally {
@@ -115,9 +120,9 @@ export function SettingsTab() {
       await sendPasswordResetEmail(auth, user.email)
       setMessage({ type: 'success', text: `Email de réinitialisation envoyé à ${user.email}` })
       clearMessage()
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Erreur lors de l'envoi de l'email:", error)
-      setMessage({ type: 'error', text: 'Erreur lors de l\'envoi de l\'email: ' + (error.message || 'Erreur inconnue') })
+      setMessage({ type: 'error', text: 'Erreur lors de l\'envoi de l\'email: ' + (error instanceof Error ? error.message : 'Erreur inconnue') })
       clearMessage()
     } finally {
       setIsSendingReset(false)

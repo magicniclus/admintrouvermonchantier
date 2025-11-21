@@ -222,7 +222,7 @@ function OnboardingContent() {
       }
 
       // Supprimer les objets File avant la sauvegarde
-      const { chantiersImages, employesImages, logoImage, ...dataToSave } = onboardingDataWithoutImages
+      const { chantiersImages: _, employesImages: __, logoImage: ___, ...dataToSave } = onboardingDataWithoutImages
 
       await Promise.all([
         setDoc(doc(db, "clients", clientId, "onboarding", "data"), dataToSave)

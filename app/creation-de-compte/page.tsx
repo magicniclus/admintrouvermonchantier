@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, Suspense } from "react"
+import { useState, useEffect, useCallback, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import { motion } from "framer-motion"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -74,7 +74,7 @@ function CreationDeCompteContent() {
   const [confirmPassword, setConfirmPassword] = useState("")
   const [isCreatingAccount, setIsCreatingAccount] = useState(false)
 
-  const fetchClientData = async () => {
+  const fetchClientData = useCallback(async () => {
     if (!uid) return
 
     try {
@@ -105,7 +105,7 @@ function CreationDeCompteContent() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [uid])
 
   useEffect(() => {
     if (uid) {
@@ -114,7 +114,7 @@ function CreationDeCompteContent() {
       setError("UID client manquant dans l'URL")
       setLoading(false)
     }
-  }, [uid])
+  }, [uid, fetchClientData])
 
   const handleCreateAccount = async () => {
     if (!uid) {
@@ -179,18 +179,23 @@ function CreationDeCompteContent() {
         window.location.href = "/dashboard"
       }, 1500)
       
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Erreur lors de la création du compte:", error)
       
       // Gestion des erreurs Firebase Auth spécifiques
-      if (error.code === 'auth/email-already-in-use') {
-        setError("Cette adresse email est déjà utilisée")
-      } else if (error.code === 'auth/weak-password') {
-        setError("Le mot de passe est trop faible")
-      } else if (error.code === 'auth/invalid-email') {
-        setError("Adresse email invalide")
+      if (error instanceof Error && 'code' in error) {
+        const firebaseError = error as { code: string; message: string }
+        if (firebaseError.code === 'auth/email-already-in-use') {
+          setError("Cette adresse email est déjà utilisée")
+        } else if (firebaseError.code === 'auth/weak-password') {
+          setError("Le mot de passe est trop faible")
+        } else if (firebaseError.code === 'auth/invalid-email') {
+          setError("Adresse email invalide")
+        } else {
+          setError("Erreur lors de la création du compte: " + firebaseError.message)
+        }
       } else {
-        setError("Erreur lors de la création du compte: " + (error.message || "Erreur inconnue"))
+        setError("Erreur lors de la création du compte: " + (error instanceof Error ? error.message : "Erreur inconnue"))
       }
     } finally {
       setIsCreatingAccount(false)
