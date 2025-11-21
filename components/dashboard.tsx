@@ -11,10 +11,12 @@ import { Button } from "@/components/ui/button"
 import { ClientsTab } from "@/components/clients-tab"
 import { ProspectsTab } from "@/components/prospects-tab"
 import { FinanceTab } from "@/components/finance-tab"
+import { SettingsTab } from "@/components/settings-tab"
 import {
   Users,
   UserPlus,
   Euro,
+  Settings,
   LogOut,
 } from "lucide-react"
 
@@ -91,7 +93,7 @@ export function Dashboard() {
         <Card className="shadow-xl border-0 bg-white/80 backdrop-blur-sm dark:bg-gray-900/80">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <CardHeader className="pb-4">
-              <TabsList className="grid w-full grid-cols-3 bg-gray-100 dark:bg-gray-800">
+              <TabsList className="grid w-full grid-cols-4 bg-gray-100 dark:bg-gray-800">
                 <TabsTrigger value="clients" className="flex items-center gap-2">
                   <Users className="w-4 h-4" />
                   Clients
@@ -103,6 +105,10 @@ export function Dashboard() {
                 <TabsTrigger value="finance" className="flex items-center gap-2">
                   <Euro className="w-4 h-4" />
                   Finance
+                </TabsTrigger>
+                <TabsTrigger value="settings" className="flex items-center gap-2">
+                  <Settings className="w-4 h-4" />
+                  Paramètres
                 </TabsTrigger>
               </TabsList>
             </CardHeader>
@@ -121,6 +127,11 @@ export function Dashboard() {
               {/* Finance Tab */}
               <TabsContent value="finance">
                 <FinanceTab />
+              </TabsContent>
+
+              {/* Settings Tab */}
+              <TabsContent value="settings">
+                <SettingsTab />
               </TabsContent>
             </CardContent>
           </Tabs>
