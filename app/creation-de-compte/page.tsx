@@ -19,7 +19,8 @@ import {
 } from "lucide-react"
 import { doc, getDoc, updateDoc } from "firebase/firestore"
 import { db } from "@/lib/firebase"
-import { createUserWithEmailAndPassword, getAuth } from "firebase/auth"
+import { createUserWithEmailAndPassword } from "firebase/auth"
+import { auth } from "@/lib/firebase"
 
 interface ClientData {
   // Informations de base
@@ -126,6 +127,13 @@ function CreationDeCompteContent() {
       return
     }
 
+    // Validation de l'email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email)) {
+      setError("Adresse email invalide")
+      return
+    }
+
     if (password !== confirmPassword) {
       setError("Les mots de passe ne correspondent pas")
       return
@@ -142,16 +150,23 @@ function CreationDeCompteContent() {
     try {
       console.log("Création de compte Firebase Auth pour:", email)
       
+      // Vérifier que le client existe avant de créer le compte
+      const clientRef = doc(db, "clients", uid)
+      const clientSnap = await getDoc(clientRef)
+      
+      if (!clientSnap.exists()) {
+        throw new Error("Client introuvable dans la base de données")
+      }
+      
       // Créer le compte Firebase Auth
-      const auth = getAuth()
       const userCredential = await createUserWithEmailAndPassword(auth, email, password)
       const user = userCredential.user
       
       console.log("Compte Firebase Auth créé avec UID:", user.uid)
       
       // Mettre à jour le document client avec l'UID Firebase Auth
-      await updateDoc(doc(db, "clients", uid), {
-        uidclient: user.uid,
+      await updateDoc(clientRef, {
+        uidClient: user.uid,
         status: "compte_cree",
         dateCreationCompte: new Date(),
         emailAuth: email
